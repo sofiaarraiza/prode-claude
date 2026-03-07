@@ -3,6 +3,73 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, type Profile } from "@/lib/supabase";
+import {
+  subscribeToPush,
+  unsubscribeFromPush,
+  getCurrentSubscription,
+  getSubscriptionStatus,
+} from "@/lib/pushClient";
+
+// ── Notification toggle mini-component ──────────────────────────────────────
+function NotificationToggle({
+  profile,
+  status,
+  loading,
+  onToggle,
+}: {
+  profile: Profile | null;
+  status: string;
+  loading: boolean;
+  onToggle: () => void;
+}) {
+  const isOn = status === "granted";
+  const isDenied = status === "denied";
+
+  return (
+    <div className="bg-white rounded-3xl shadow-sm p-5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center text-xl">
+            🔔
+          </div>
+          <div>
+            <p className="font-bold text-gray-800 text-sm">Notificaciones</p>
+            <p className="text-xs text-gray-500">
+              {isDenied
+                ? "Bloqueadas en este navegador"
+                : isOn
+                  ? "Activadas"
+                  : "Desactivadas"}
+            </p>
+          </div>
+        </div>
+        {isDenied ? (
+          <span className="text-xs text-red-400 font-medium">Bloqueadas</span>
+        ) : (
+          <button
+            onClick={onToggle}
+            disabled={loading || !profile}
+            className={`relative w-12 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${
+              isOn ? "bg-blue-600" : "bg-gray-200"
+            } disabled:opacity-50`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                isOn ? "translate-x-6" : "translate-x-0"
+              }`}
+            />
+          </button>
+        )}
+      </div>
+      {isDenied && (
+        <p className="mt-2 text-xs text-gray-400">
+          Habilitá las notificaciones en Ajustes del sistema para este sitio.
+        </p>
+      )}
+    </div>
+  );
+}
+// ────────────────────────────────────────────────────────────────────────────
 
 type GroupRank = {
   group_id: string;
@@ -30,6 +97,10 @@ export default function PerfilPage() {
   const [saved, setSaved] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
   const [groupRanks, setGroupRanks] = useState<GroupRank[]>([]);
+  const [notifStatus, setNotifStatus] = useState<
+    "checking" | "granted" | "denied" | "default"
+  >("checking");
+  const [notifLoading, setNotifLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -137,6 +208,15 @@ export default function PerfilPage() {
           };
         });
         setGroupRanks(ranks);
+      }
+
+      // Initialize notification status
+      const perm = await getSubscriptionStatus();
+      if (perm === "granted") {
+        const existingSub = await getCurrentSubscription();
+        setNotifStatus(existingSub ? "granted" : "default");
+      } else {
+        setNotifStatus(perm);
       }
 
       setLoading(false);
@@ -464,6 +544,105 @@ export default function PerfilPage() {
             </div>
           </div>
         </div>
+
+        {/* ── Notificaciones ──────────────────────────────── */}
+        {notifStatus !== "checking" && (
+          <div className="bg-white rounded-3xl shadow-sm p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center text-xl">
+                  🔔
+                </div>
+                <div>
+                  <p className="font-bold text-gray-800 text-sm">
+                    Notificaciones
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {notifStatus === "denied"
+                      ? "Bloqueadas en este navegador"
+                      : notifStatus === "granted"
+                        ? "Activadas"
+                        : "Desactivadas"}
+                  </p>
+                </div>
+              </div>
+              {notifStatus === "denied" ? (
+                <span className="text-xs text-red-400 font-medium">
+                  Bloqueadas
+                </span>
+              ) : (
+                <button
+                  onClick={async () => {
+                    if (!profile) return;
+                    setNotifLoading(true);
+                    try {
+                      if (notifStatus === "granted") {
+                        const sub = await getCurrentSubscription();
+                        await unsubscribeFromPush();
+                        if (sub) {
+                          await fetch("/api/push/subscribe", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              userId: profile.id,
+                              subscription: sub.toJSON(),
+                              action: "unsubscribe",
+                            }),
+                          });
+                        }
+                        setNotifStatus("default");
+                      } else {
+                        const sub = await subscribeToPush();
+                        if (sub) {
+                          await fetch("/api/push/subscribe", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              userId: profile.id,
+                              subscription: sub.toJSON(),
+                            }),
+                          });
+                          setNotifStatus("granted");
+                        } else {
+                          const perm = await getSubscriptionStatus();
+                          setNotifStatus(
+                            perm === "denied" ? "denied" : "default",
+                          );
+                        }
+                      }
+                    } finally {
+                      setNotifLoading(false);
+                    }
+                  }}
+                  disabled={notifLoading}
+                  className={`relative w-12 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${
+                    notifStatus === "granted" ? "bg-blue-600" : "bg-gray-200"
+                  } disabled:opacity-50`}
+                >
+                  {notifLoading ? (
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    </span>
+                  ) : (
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                        notifStatus === "granted"
+                          ? "translate-x-6"
+                          : "translate-x-0"
+                      }`}
+                    />
+                  )}
+                </button>
+              )}
+            </div>
+            {notifStatus === "denied" && (
+              <p className="mt-2 text-xs text-gray-400">
+                Para habilitar notificaciones, gestioná los permisos del sitio
+                en la configuración del navegador.
+              </p>
+            )}
+          </div>
+        )}
 
         <button
           onClick={handleLogout}

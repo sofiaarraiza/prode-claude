@@ -1,0 +1,46 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+);
+
+export async function POST(req: NextRequest) {
+  const { userId, subscription, action } = await req.json();
+
+  if (!userId || !subscription) {
+    return NextResponse.json(
+      { error: "Missing required fields" },
+      { status: 400 },
+    );
+  }
+
+  const { endpoint, keys } = subscription;
+
+  if (action === "unsubscribe") {
+    await supabaseAdmin
+      .from("push_subscriptions")
+      .delete()
+      .eq("user_id", userId)
+      .eq("endpoint", endpoint);
+    return NextResponse.json({ ok: true });
+  }
+
+  // Upsert subscription
+  const { error } = await supabaseAdmin.from("push_subscriptions").upsert(
+    {
+      user_id: userId,
+      endpoint,
+      p256dh: keys.p256dh,
+      auth_key: keys.auth,
+    },
+    { onConflict: "user_id,endpoint" },
+  );
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
+}
