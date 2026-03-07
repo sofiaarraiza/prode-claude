@@ -45,7 +45,7 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- ============================================================
--- TABLA: groups (políticas que referencian group_members van DESPUÉS)
+-- TABLA: groups
 -- ============================================================
 create table public.groups (
   id uuid default uuid_generate_v4() primary key,
@@ -58,7 +58,9 @@ create table public.groups (
 
 alter table public.groups enable row level security;
 
--- Estas dos políticas NO dependen de group_members, van ahora
+-- Para evitar recursión infinita, las políticas de groups verifican los miembros directamente de group_members
+-- SIN depender de otra política SELECT en group_members.
+
 create policy "Usuarios autenticados pueden crear grupos"
   on public.groups for insert
   with check (auth.uid() = admin_id);
@@ -67,8 +69,20 @@ create policy "Solo el admin puede actualizar el grupo"
   on public.groups for update
   using (auth.uid() = admin_id);
 
+create policy "Miembros pueden ver su grupo"
+  on public.groups for select
+  using (
+    auth.uid() = admin_id -- El admin siempre puede ver
+    OR
+    id IN (
+      select gm.group_id 
+      from public.group_members gm 
+      where gm.user_id = auth.uid()
+    )
+  );
+
 -- ============================================================
--- TABLA: group_members (debe existir ANTES de la política de select en groups)
+-- TABLA: group_members
 -- ============================================================
 create table public.group_members (
   id uuid default uuid_generate_v4() primary key,
@@ -83,27 +97,16 @@ alter table public.group_members enable row level security;
 create policy "Miembros pueden ver otros miembros del grupo"
   on public.group_members for select
   using (
-    exists (
-      select 1 from public.group_members gm2
-      where gm2.group_id = group_members.group_id
-      and gm2.user_id = auth.uid()
+    group_id IN (
+      select gm.group_id 
+      from public.group_members gm 
+      where gm.user_id = auth.uid()
     )
   );
 
 create policy "Usuarios autenticados pueden unirse a grupos"
   on public.group_members for insert
   with check (auth.uid() = user_id);
-
--- Ahora sí: política de SELECT en groups que referencia group_members
-create policy "Miembros pueden ver su grupo"
-  on public.groups for select
-  using (
-    exists (
-      select 1 from public.group_members
-      where group_members.group_id = groups.id
-      and group_members.user_id = auth.uid()
-    )
-  );
 
 -- ============================================================
 -- TABLA: matches (fixture hardcodeado del Mundial 2026)
