@@ -1,4 +1,14 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/auth/login/page": "app/auth/login/page.js",
+  "/auth/callback/route": "app/auth/callback/route.js",
+  "/grupos/[id]/page": "app/grupos/[id]/page.js",
+  "/grupos/page": "app/grupos/page.js",
+  "/grupos/crear/page": "app/grupos/crear/page.js",
+  "/grupos/unirse/page": "app/grupos/unirse/page.js",
   "/page": "app/page.js",
-  "/auth/login/page": "app/auth/login/page.js"
+  "/perfil/page": "app/perfil/page.js",
+  "/predicciones/page": "app/predicciones/page.js",
+  "/tabla/page": "app/tabla/page.js"
 }
