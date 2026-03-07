@@ -19,6 +19,17 @@ type PredictionMap = Record<
 >;
 type ViewMode = "grupos" | "fechas" | "buscar";
 
+// Predicciones de compañeros por partido
+type TeammatePred = {
+  user_id: string;
+  full_name: string;
+  avatar_url: string | null;
+  predicted_home_score: number;
+  predicted_away_score: number;
+  points: number | null;
+};
+type TeammatesMap = Record<string, TeammatePred[]>;
+
 function PrediccionesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -30,6 +41,8 @@ function PrediccionesContent() {
     groupIdParam ?? "",
   );
   const [predictions, setPredictions] = useState<PredictionMap>({});
+  const [teammates, setTeammates] = useState<TeammatesMap>({});
+  const [expandedMatch, setExpandedMatch] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("A");
   const [viewMode, setViewMode] = useState<ViewMode>("grupos");
   const [searchQuery, setSearchQuery] = useState("");
@@ -69,6 +82,7 @@ function PrediccionesContent() {
     load();
   }, [router]);
 
+  // Cargar mis predicciones cuando cambia el grupo
   useEffect(() => {
     if (!selectedGroup || !userId) return;
     const loadPreds = async () => {
@@ -92,6 +106,41 @@ function PrediccionesContent() {
     loadPreds();
   }, [selectedGroup, userId]);
 
+  // Cargar predicciones de compañeros para partidos finalizados
+  useEffect(() => {
+    if (!selectedGroup) return;
+    const loadTeammates = async () => {
+      const finishedMatchIds = matches
+        .filter((m) => m.status === "finished")
+        .map((m) => m.id);
+
+      if (finishedMatchIds.length === 0) return;
+
+      const { data } = await supabase
+        .from("predictions")
+        .select("*, profiles(full_name, avatar_url)")
+        .eq("group_id", selectedGroup)
+        .in("match_id", finishedMatchIds)
+        .neq("user_id", userId);
+
+      const map: TeammatesMap = {};
+      data?.forEach((p: any) => {
+        if (!map[p.match_id]) map[p.match_id] = [];
+        map[p.match_id].push({
+          user_id: p.user_id,
+          full_name: p.profiles?.full_name ?? "Jugador",
+          avatar_url: p.profiles?.avatar_url ?? null,
+          predicted_home_score: p.predicted_home_score,
+          predicted_away_score: p.predicted_away_score,
+          points: p.points,
+        });
+      });
+      setTeammates(map);
+    };
+
+    if (matches.length > 0) loadTeammates();
+  }, [matches, selectedGroup, userId]);
+
   const handlePredictionChange = (
     matchId: string,
     side: "home" | "away",
@@ -108,26 +157,25 @@ function PrediccionesContent() {
     if (!selectedGroup) return;
     const pred = predictions[match.id];
     if (
-      pred?.home === "" ||
-      pred?.home === undefined ||
-      pred?.away === "" ||
-      pred?.away === undefined
+      !pred ||
+      pred.home === "" ||
+      pred.home === undefined ||
+      pred.away === "" ||
+      pred.away === undefined
     )
       return;
 
     setSaving(match.id);
-
-    const payload = {
-      user_id: userId,
-      match_id: match.id,
-      group_id: selectedGroup,
-      predicted_home_score: parseInt(pred.home),
-      predicted_away_score: parseInt(pred.away),
-    };
-
-    const { error } = await supabase
-      .from("predictions")
-      .upsert(payload, { onConflict: "user_id,match_id,group_id" });
+    const { error } = await supabase.from("predictions").upsert(
+      {
+        user_id: userId,
+        match_id: match.id,
+        group_id: selectedGroup,
+        predicted_home_score: parseInt(pred.home),
+        predicted_away_score: parseInt(pred.away),
+      },
+      { onConflict: "user_id,match_id,group_id" },
+    );
 
     if (!error) {
       setPredictions((prev) => ({
@@ -135,17 +183,15 @@ function PrediccionesContent() {
         [match.id]: { ...prev[match.id], saved: true },
       }));
     }
-
     setSaving(null);
   };
 
-  const getMatchStatus = (match: Match) => {
+  const getMatchStatus = (match: Match): "open" | "locked" | "finished" => {
     if (match.status === "finished") return "finished";
     if (!isMatchEditable(match.match_date)) return "locked";
     return "open";
   };
 
-  // Agrupar por fecha para vista "fechas"
   const matchesByDate = useMemo(() => {
     const grouped: Record<string, Match[]> = {};
     matches.forEach((m) => {
@@ -156,7 +202,6 @@ function PrediccionesContent() {
     return grouped;
   }, [matches]);
 
-  // Filtrar por búsqueda
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase().trim();
@@ -175,6 +220,20 @@ function PrediccionesContent() {
     );
   }
 
+  const matchCardProps = (match: Match) => ({
+    match,
+    prediction: predictions[match.id],
+    status: getMatchStatus(match),
+    saving: saving === match.id,
+    selectedGroup,
+    teammatesPreds: teammates[match.id] ?? [],
+    expanded: expandedMatch === match.id,
+    onToggleExpand: () =>
+      setExpandedMatch((prev) => (prev === match.id ? null : match.id)),
+    onChange: handlePredictionChange,
+    onSave: savePrediction,
+  });
+
   return (
     <div className="min-h-dvh bg-[#F0F4FF] pb-24">
       {/* Header */}
@@ -189,7 +248,6 @@ function PrediccionesContent() {
           MIS PREDICCIONES
         </h1>
 
-        {/* Group selector */}
         {groups.length > 0 ? (
           <div>
             <p className="text-white/60 text-xs mb-1.5">Grupo seleccionado</p>
@@ -228,7 +286,6 @@ function PrediccionesContent() {
           </div>
         )}
 
-        {/* View mode selector */}
         <div className="flex gap-2">
           {(["grupos", "fechas", "buscar"] as ViewMode[]).map((mode) => (
             <button
@@ -257,7 +314,7 @@ function PrediccionesContent() {
         </div>
       </div>
 
-      {/* Search bar — solo en modo buscar */}
+      {/* Search bar */}
       {viewMode === "buscar" && (
         <div className="px-4 py-3 bg-white border-b border-gray-100 sticky top-0 z-20">
           <div className="relative">
@@ -302,7 +359,7 @@ function PrediccionesContent() {
         </div>
       )}
 
-      {/* Group tabs — solo en modo grupos */}
+      {/* Group tabs */}
       {viewMode === "grupos" && (
         <div className="bg-white border-b border-gray-100 sticky top-0 z-20">
           <div
@@ -328,24 +385,13 @@ function PrediccionesContent() {
 
       {/* Content */}
       <div className="px-4 py-4 space-y-3">
-        {/* VISTA GRUPOS */}
         {viewMode === "grupos" &&
           matches
             .filter((m) => m.group_name === activeTab)
             .map((match) => (
-              <MatchCard
-                key={match.id}
-                match={match}
-                prediction={predictions[match.id]}
-                status={getMatchStatus(match)}
-                saving={saving === match.id}
-                selectedGroup={selectedGroup}
-                onChange={handlePredictionChange}
-                onSave={savePrediction}
-              />
+              <MatchCard key={match.id} {...matchCardProps(match)} />
             ))}
 
-        {/* VISTA FECHAS */}
         {viewMode === "fechas" &&
           Object.entries(matchesByDate).map(([dateKey, dayMatches]) => (
             <div key={dateKey}>
@@ -362,13 +408,7 @@ function PrediccionesContent() {
                 {dayMatches.map((match) => (
                   <MatchCard
                     key={match.id}
-                    match={match}
-                    prediction={predictions[match.id]}
-                    status={getMatchStatus(match)}
-                    saving={saving === match.id}
-                    selectedGroup={selectedGroup}
-                    onChange={handlePredictionChange}
-                    onSave={savePrediction}
+                    {...matchCardProps(match)}
                     showGroup
                   />
                 ))}
@@ -376,7 +416,6 @@ function PrediccionesContent() {
             </div>
           ))}
 
-        {/* VISTA BÚSQUEDA */}
         {viewMode === "buscar" && !searchQuery && (
           <div className="text-center py-12">
             <span className="text-5xl block mb-3">🔍</span>
@@ -417,17 +456,7 @@ function PrediccionesContent() {
 
         {viewMode === "buscar" &&
           searchResults.map((match) => (
-            <MatchCard
-              key={match.id}
-              match={match}
-              prediction={predictions[match.id]}
-              status={getMatchStatus(match)}
-              saving={saving === match.id}
-              selectedGroup={selectedGroup}
-              onChange={handlePredictionChange}
-              onSave={savePrediction}
-              showGroup
-            />
+            <MatchCard key={match.id} {...matchCardProps(match)} showGroup />
           ))}
       </div>
 
@@ -445,6 +474,9 @@ type MatchCardProps = {
   saving: boolean;
   selectedGroup: string;
   showGroup?: boolean;
+  teammatesPreds: TeammatePred[];
+  expanded: boolean;
+  onToggleExpand: () => void;
   onChange: (matchId: string, side: "home" | "away", value: string) => void;
   onSave: (match: Match) => void;
 };
@@ -456,6 +488,9 @@ function MatchCard({
   saving,
   selectedGroup,
   showGroup,
+  teammatesPreds,
+  expanded,
+  onToggleExpand,
   onChange,
   onSave,
 }: MatchCardProps) {
@@ -465,9 +500,10 @@ function MatchCard({
     prediction.home !== "" &&
     prediction.away !== "";
   const matchDate = parseISO(match.match_date);
+  const hasTeammates = status === "finished" && teammatesPreds.length > 0;
 
   const pointsBadge = () => {
-    if (match.status !== "finished") return null;
+    if (status !== "finished") return null;
     if (!prediction)
       return (
         <span className="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">
@@ -476,13 +512,13 @@ function MatchCard({
       );
     if (prediction.points === 3)
       return (
-        <span className="text-xs bg-[#003DA5] text-white px-2 py-0.5 rounded-full font-bold">
+        <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-bold">
           +3 pts 🎯
         </span>
       );
     if (prediction.points === 1)
       return (
-        <span className="text-xs bg-amber-400 text-white px-2 py-0.5 rounded-full font-bold">
+        <span className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold">
           +1 pt
         </span>
       );
@@ -493,11 +529,16 @@ function MatchCard({
     );
   };
 
+  const getPredBadge = (pts: number | null) => {
+    if (pts === 3) return "🎯";
+    if (pts === 1) return "✅";
+    if (pts === 0) return "❌";
+    return "·";
+  };
+
   return (
     <div
-      className={`bg-white rounded-3xl overflow-hidden shadow-sm ${
-        status === "finished" ? "opacity-80" : ""
-      }`}
+      className={`bg-white rounded-3xl overflow-hidden shadow-sm ${status === "finished" ? "opacity-90" : ""}`}
     >
       {/* Match header */}
       <div className="px-4 py-2.5 flex items-center justify-between bg-[#F8FAFF] border-b border-gray-100">
@@ -525,7 +566,6 @@ function MatchCard({
       {/* Teams & scores */}
       <div className="px-4 py-4">
         <div className="flex items-center gap-2">
-          {/* Home team */}
           <div className="flex-1 text-center">
             <span className="text-3xl block mb-1">{match.home_flag}</span>
             <p className="text-xs font-semibold text-gray-700 leading-tight">
@@ -533,7 +573,6 @@ function MatchCard({
             </p>
           </div>
 
-          {/* Score inputs */}
           <div className="flex items-center gap-2 flex-shrink-0">
             {status === "finished" ? (
               <div className="text-center">
@@ -590,7 +629,6 @@ function MatchCard({
             )}
           </div>
 
-          {/* Away team */}
           <div className="flex-1 text-center">
             <span className="text-3xl block mb-1">{match.away_flag}</span>
             <p className="text-xs font-semibold text-gray-700 leading-tight">
@@ -599,7 +637,7 @@ function MatchCard({
           </div>
         </div>
 
-        {/* Save button / status */}
+        {/* Save status */}
         {status === "open" && selectedGroup && (
           <div className="mt-3 flex items-center justify-center">
             {saving ? (
@@ -625,7 +663,113 @@ function MatchCard({
             )}
           </div>
         )}
+
+        {/* Ver predicciones de compañeros — solo si el partido terminó */}
+        {hasTeammates && (
+          <button
+            onClick={onToggleExpand}
+            className="w-full mt-3 flex items-center justify-center gap-1.5 text-xs text-[#003DA5] font-semibold py-2 rounded-xl bg-[#F0F4FF] active:scale-95 transition-transform"
+          >
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+            {expanded
+              ? "Ocultar"
+              : `Ver predicciones del grupo (${teammatesPreds.length})`}
+            <svg
+              className={`w-3.5 h-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+        )}
       </div>
+
+      {/* Teammates predictions panel */}
+      {expanded && hasTeammates && (
+        <div className="border-t border-gray-100 bg-[#F8FAFF]">
+          <div className="px-4 py-2 border-b border-gray-100">
+            <p className="text-xs font-bold text-gray-400 tracking-wide">
+              PREDICCIONES DEL GRUPO
+            </p>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {teammatesPreds
+              .sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
+              .map((t) => (
+                <div
+                  key={t.user_id}
+                  className="flex items-center gap-3 px-4 py-3"
+                >
+                  {/* Avatar */}
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
+                    style={{
+                      background: "linear-gradient(135deg, #003DA5, #1A5FBF)",
+                    }}
+                  >
+                    {t.avatar_url ? (
+                      <img
+                        src={t.avatar_url}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-white font-bold text-xs">
+                        {t.full_name[0]}
+                      </span>
+                    )}
+                  </div>
+                  {/* Name */}
+                  <span className="flex-1 text-sm text-gray-700 font-semibold truncate">
+                    {t.full_name}
+                  </span>
+                  {/* Prediction */}
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="text-sm font-bold text-gray-800 tabular-nums"
+                      style={{ fontFamily: "Bebas Neue, sans-serif" }}
+                    >
+                      {t.predicted_home_score} - {t.predicted_away_score}
+                    </span>
+                    <span className="text-base">{getPredBadge(t.points)}</span>
+                    {t.points !== null && (
+                      <span
+                        className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                          t.points === 3
+                            ? "bg-[#003DA5] text-white"
+                            : t.points === 1
+                              ? "bg-amber-400 text-white"
+                              : "bg-gray-100 text-gray-400"
+                        }`}
+                      >
+                        {t.points > 0 ? `+${t.points}` : "0"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

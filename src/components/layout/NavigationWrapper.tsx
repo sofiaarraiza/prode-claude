@@ -15,8 +15,10 @@ export default function NavigationWrapper({
   const isAuthPage = pathname?.startsWith("/auth");
 
   // Determinar la tab activa basada en la ruta
-  let activeTab: "home" | "predicciones" | "grupos" | "tabla" = "home";
+  let activeTab: "home" | "predicciones" | "partidos" | "grupos" | "tabla" =
+    "home";
   if (pathname?.startsWith("/predicciones")) activeTab = "predicciones";
+  else if (pathname?.startsWith("/partidos")) activeTab = "partidos";
   else if (pathname?.startsWith("/grupos")) activeTab = "grupos";
   else if (pathname?.startsWith("/tabla")) activeTab = "tabla";
   else if (pathname === "/perfil" || pathname === "/dashboard")
