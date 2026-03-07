@@ -3,18 +3,18 @@
 // Fechas en UTC-5 (hora central USA/México aprox)
 
 export type Match = {
-  match_number: number
-  phase: string
-  group_name: string
-  home_team: string
-  away_team: string
-  home_flag: string
-  away_flag: string
-  match_date: string // ISO string
-  venue: string
-  city: string
-  country: string
-}
+  match_number: number;
+  phase: string;
+  group_name: string;
+  home_team: string;
+  away_team: string;
+  home_flag: string;
+  away_flag: string;
+  match_date: string; // ISO string
+  venue: string;
+  city: string;
+  country: string;
+};
 
 export const GROUP_STAGE_MATCHES: Match[] = [
   // ==================== GRUPO A ====================
@@ -731,7 +731,6 @@ export const GROUP_STAGE_MATCHES: Match[] = [
     away_team: "Inglaterra",
     home_flag: "🇸🇮",
     away_flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    away_flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     match_date: "2026-06-20T18:00:00-05:00",
     venue: "BC Place",
     city: "Vancouver",
@@ -977,17 +976,30 @@ export const GROUP_STAGE_MATCHES: Match[] = [
     city: "Vancouver",
     country: "Canadá",
   },
-]
+];
 
-export const GROUPS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"]
+export const GROUPS = [
+  "A",
+  "B",
+  "C",
+  "D",
+  "E",
+  "F",
+  "G",
+  "H",
+  "I",
+  "J",
+  "K",
+  "L",
+];
 
 export function getMatchesByGroup(groupName: string): Match[] {
-  return GROUP_STAGE_MATCHES.filter((m) => m.group_name === groupName)
+  return GROUP_STAGE_MATCHES.filter((m) => m.group_name === groupName);
 }
 
 export function isMatchEditable(matchDate: string): boolean {
-  const match = new Date(matchDate)
-  const now = new Date()
-  const sevenDaysBefore = new Date(match.getTime() - 7 * 24 * 60 * 60 * 1000)
-  return now < sevenDaysBefore
+  const match = new Date(matchDate);
+  const now = new Date();
+  const sevenDaysBefore = new Date(match.getTime() - 7 * 24 * 60 * 60 * 1000);
+  return now < sevenDaysBefore;
 }
