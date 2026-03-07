@@ -1,16 +1,37 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --font-display: 'Bebas Neue', sans-serif;
-  --font-body: 'DM Sans', sans-serif;
-  --fifa-blue: #003DA5;
-  --fifa-blue-dark: #002B75;
-  --fifa-red: #E30613;
-  --fifa-gold: #C8A84B;
+  --font-display: "Bebas Neue", sans-serif;
+  --font-body: "DM Sans", sans-serif;
+
+  /* Primary — deep royal blue */
+  --color-primary: #0038a8;
+  --color-primary-dark: #002580;
+  --color-primary-light: #1a55c4;
+
+  /* Surface & backgrounds */
+  --color-bg: #f4f6fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #eef1f8;
+
+  /* Text */
+  --color-text: #0d1b3e;
+  --color-muted: #6b7a99;
+
+  /* Green CTA */
+  --color-green: #12a150;
+  --color-green-dark: #0d8742;
+
+  /* Amber / points */
+  --color-amber: #e8a900;
+
+  /* Legacy aliases */
+  --fifa-blue: var(--color-primary);
+  --fifa-blue-dark: var(--color-primary-dark);
 }
 
 * {
@@ -24,40 +45,69 @@ html {
 
 body {
   font-family: var(--font-body);
-  background-color: #F0F4FF;
-  color: #0D1B3E;
+  background-color: var(--color-bg);
+  color: var(--color-text);
   -webkit-font-smoothing: antialiased;
   min-height: 100dvh;
 }
 
-/* FIFA Pattern Background */
+/* ===== Hero / Header gradient ===== */
 .bg-fifa-pattern {
-  background-color: var(--fifa-blue);
-  background-image: 
-    radial-gradient(circle at 20% 50%, rgba(255,255,255,0.05) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(255,255,255,0.05) 0%, transparent 40%);
+  background: linear-gradient(
+    145deg,
+    var(--color-primary-dark) 0%,
+    var(--color-primary) 55%,
+    var(--color-primary-light) 100%
+  );
+  background-image:
+    linear-gradient(
+      145deg,
+      var(--color-primary-dark) 0%,
+      var(--color-primary) 55%,
+      var(--color-primary-light) 100%
+    ),
+    radial-gradient(
+      circle at 15% 60%,
+      rgba(255, 255, 255, 0.07) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 85% 15%,
+      rgba(255, 255, 255, 0.05) 0%,
+      transparent 40%
+    );
+  background-blend-mode: normal, screen, screen;
 }
 
-/* Diagonal hero accent */
+/* ===== Diagonal hero accent ===== */
 .hero-diagonal::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: -2px;
   left: 0;
   right: 0;
   height: 48px;
-  background: #F0F4FF;
+  background: var(--color-bg);
   clip-path: ellipse(60% 100% at 50% 100%);
 }
 
-/* Card shimmer loading */
+/* ===== Card shimmer / skeleton ===== */
 .skeleton {
-  background: linear-gradient(90deg, #e8eef8 25%, #d4def4 50%, #e8eef8 75%);
+  background: linear-gradient(90deg, #e4e9f4 25%, #d4dbee 50%, #e4e9f4 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
-/* Score input */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ===== Score input ===== */
 .score-input {
   width: 3.5rem;
   height: 3.5rem;
@@ -65,9 +115,9 @@ body {
   font-family: var(--font-display);
   font-size: 1.75rem;
   border-radius: 12px;
-  border: 2px solid #CBD5E8;
+  border: 2px solid #c9d4ea;
   background: white;
-  color: var(--fifa-blue);
+  color: var(--color-primary);
   transition: all 0.2s;
   -moz-appearance: textfield;
 }
@@ -80,39 +130,54 @@ body {
 
 .score-input:focus {
   outline: none;
-  border-color: var(--fifa-blue);
-  box-shadow: 0 0 0 3px rgba(0, 61, 165, 0.15);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(0, 56, 168, 0.12);
 }
 
 .score-input:disabled {
-  background: #F0F4FF;
-  color: #8896B0;
+  background: var(--color-surface-2);
+  color: var(--color-muted);
   cursor: not-allowed;
 }
 
-/* Scrollbar mobile */
+/* ===== Scrollbar ===== */
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 61, 165, 0.3);
+  background: rgba(0, 56, 168, 0.25);
   border-radius: 2px;
 }
 
-/* Bottom nav safe area */
+/* ===== Bottom nav safe area ===== */
 .bottom-nav {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Transition helpers */
+/* ===== Transition helpers ===== */
 .transition-all-200 {
   transition: all 0.2s ease;
 }
 
-/* Points badge */
-.points-exact { background: #003DA5; color: white; }
-.points-partial { background: #E8A900; color: white; }
-.points-zero { background: #E8ECF4; color: #8896B0; }
-.points-pending { background: #F0F4FF; color: #8896B0; border: 2px dashed #CBD5E8; }
+/* ===== Points badges ===== */
+.points-exact {
+  background: var(--color-primary);
+  color: white;
+}
+.points-partial {
+  background: var(--color-amber);
+  color: white;
+}
+.points-zero {
+  background: #e4e9f4;
+  color: var(--color-muted);
+}
+.points-pending {
+  background: var(--color-surface-2);
+  color: var(--color-muted);
+  border: 2px dashed #c9d4ea;
+}

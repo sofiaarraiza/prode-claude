@@ -122,17 +122,17 @@ export default function BottomNav({ active }: Props) {
               key={item.id}
               href={item.href}
               className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-all active:scale-90 ${
-                isActive ? "text-[#003DA5]" : "text-gray-400"
+                isActive ? "text-[#0038A8]" : "text-gray-400"
               }`}
             >
               {item.icon(isActive)}
               <span
-                className={`text-xs font-medium ${isActive ? "text-[#003DA5]" : "text-gray-400"}`}
+                className={`text-xs font-medium ${isActive ? "text-[#0038A8]" : "text-gray-400"}`}
               >
                 {item.label}
               </span>
               {isActive && (
-                <div className="w-1 h-1 rounded-full bg-[#003DA5]" />
+                <div className="w-5 h-0.5 rounded-full bg-[#0038A8]" />
               )}
             </Link>
           );
