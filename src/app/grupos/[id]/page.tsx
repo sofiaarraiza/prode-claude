@@ -52,7 +52,8 @@ export default function GrupoDetailPage() {
 
   const shareWhatsApp = () => {
     if (!group) return;
-    const text = `¡Unite a mi grupo de prode del Mundial 2026! 🏆⚽\n\nGrupo: *${group.name}*\nCódigo: *${group.invite_code}*\n\nEntrá acá 👉 https://prode-claude.vercel.app/grupos/unirse`;
+    const joinUrl = `${window.location.origin}/grupos/unirse?code=${group.invite_code}`;
+    const text = `¡Unite a mi grupo de prode del Mundial 2026! 🏆⚽\n\nGrupo: *${group.name}*\n\nTocá el link y entrás directo 👉 ${joinUrl}`;
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
     window.open(url, "_blank");
   };
@@ -66,20 +67,20 @@ export default function GrupoDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-dvh bg-[#F0F4FF] flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-[#003DA5] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-dvh bg-[#F4F6FB] dark:bg-[#13151F] flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!group) {
     return (
-      <div className="min-h-dvh bg-[#F0F4FF] flex items-center justify-center px-5">
+      <div className="min-h-dvh bg-[#F4F6FB] dark:bg-[#13151F] flex items-center justify-center px-5">
         <div className="text-center">
           <p className="text-gray-500 mb-4">Grupo no encontrado</p>
           <button
             onClick={() => router.push("/grupos")}
-            className="text-[#003DA5] font-semibold"
+            className="text-blue-600 dark:text-blue-400 font-semibold"
           >
             Volver
           </button>
@@ -89,7 +90,7 @@ export default function GrupoDetailPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-[#F0F4FF] pb-24">
+    <div className="min-h-dvh bg-[#F4F6FB] dark:bg-[#13151F] pb-24">
       {/* Header */}
       <div className="bg-fifa-pattern px-5 pt-14 pb-14 relative overflow-hidden">
         <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/5" />
@@ -216,9 +217,9 @@ export default function GrupoDetailPage() {
         </button>
 
         {/* Leaderboard */}
-        <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-[#1E2233] rounded-3xl shadow-sm overflow-hidden">
           <div className="px-5 pt-5 pb-3 border-b border-gray-100">
-            <h2 className="font-bold text-gray-800 text-lg flex items-center gap-2">
+            <h2 className="font-bold text-gray-800 dark:text-white text-lg flex items-center gap-2">
               <span>🏆</span> Tabla de posiciones
             </h2>
           </div>
@@ -238,7 +239,7 @@ export default function GrupoDetailPage() {
                 return (
                   <div
                     key={entry.user_id}
-                    className={`flex items-center gap-3 px-5 py-4 ${isMe ? "bg-[#F0F4FF]" : ""}`}
+                    className={`flex items-center gap-3 px-5 py-4 ${isMe ? "bg-[#EEF1F8] dark:bg-[#252838]" : ""}`}
                   >
                     <div className="w-8 text-center text-lg">
                       {typeof medalEmoji(index) === "string" &&
@@ -251,9 +252,9 @@ export default function GrupoDetailPage() {
                       )}
                     </div>
                     <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 ${isMe ? "ring-2 ring-[#003DA5]" : ""}`}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 ${isMe ? "ring-2 ring-blue-500" : ""}`}
                       style={{
-                        background: "linear-gradient(135deg, #003DA5, #1A5FBF)",
+                        background: "linear-gradient(135deg, #1d4ed8, #2563eb)",
                       }}
                     >
                       {entry.avatar_url ? (
@@ -270,7 +271,7 @@ export default function GrupoDetailPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p
-                        className={`font-semibold text-sm truncate ${isMe ? "text-[#003DA5]" : "text-gray-800"}`}
+                        className={`font-semibold text-sm truncate ${isMe ? "text-blue-600 dark:text-blue-400 dark:text-blue-400" : "text-gray-800 dark:text-white"}`}
                       >
                         {entry.full_name ?? "Jugador"}{" "}
                         {isMe && (
@@ -291,7 +292,7 @@ export default function GrupoDetailPage() {
                     </div>
                     <div className="text-right">
                       <p
-                        className="font-display text-2xl text-[#003DA5]"
+                        className="font-display text-2xl text-blue-600 dark:text-blue-400 dark:text-blue-400"
                         style={{ fontFamily: "Bebas Neue, sans-serif" }}
                       >
                         {entry.total_points}
