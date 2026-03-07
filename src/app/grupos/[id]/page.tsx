@@ -190,7 +190,7 @@ export default function GrupoDetailPage() {
         {/* Quick action */}
         <button
           onClick={() => router.push(`/predicciones?grupo=${groupId}`)}
-          className="w-full bg-[#E30613] text-white rounded-2xl p-4 text-left mb-4 active:scale-95 transition-transform shadow-sm"
+          className="w-full bg-[#16a34a] text-white rounded-2xl p-4 text-left mb-4 active:scale-95 transition-transform shadow-sm"
         >
           <div className="flex items-center justify-between">
             <div>

@@ -31,8 +31,8 @@ function buildStandings(groupName: string, matches: Match[]): StandingRow[] {
   // Flags lookup from matches
   const flagMap: Record<string, string> = {};
   matches.forEach((m) => {
-    flagMap[m.home_team] = m.home_flag;
-    flagMap[m.away_team] = m.away_flag;
+    flagMap[m.home_team] = m.home_flag ?? "";
+    flagMap[m.away_team] = m.away_flag ?? "";
   });
 
   teams.forEach((t) => {
