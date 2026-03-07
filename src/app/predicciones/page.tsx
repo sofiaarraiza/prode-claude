@@ -9,7 +9,6 @@ import {
   type Group,
 } from "@/lib/supabase";
 import { GROUPS, isMatchEditable } from "@/lib/fixture";
-import BottomNav from "@/components/layout/BottomNav";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -420,8 +419,6 @@ function PrediccionesContent() {
           );
         })}
       </div>
-
-      <BottomNav active="predicciones" />
     </div>
   );
 }
