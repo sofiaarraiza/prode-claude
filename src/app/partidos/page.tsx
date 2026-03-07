@@ -167,12 +167,20 @@ export default function PartidosPage() {
         <p className="text-white/60 text-xs tracking-widest mb-1">
           COPA DEL MUNDO 2026
         </p>
-        <h1
-          className="text-white text-3xl font-bold mb-4"
-          style={{ fontFamily: "Bebas Neue, sans-serif" }}
-        >
-          PARTIDOS
-        </h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1
+            className="text-white text-3xl font-bold"
+            style={{ fontFamily: "Bebas Neue, sans-serif" }}
+          >
+            PARTIDOS
+          </h1>
+          <button
+            onClick={() => router.push("/bracket")}
+            className="flex items-center gap-1.5 bg-white/20 text-white px-3 py-1.5 rounded-xl text-xs font-semibold active:scale-95 transition-transform"
+          >
+            🗂️ Llaves
+          </button>
+        </div>
 
         {/* Phase selector */}
         <div

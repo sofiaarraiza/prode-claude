@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, type Profile, type Group, type Match } from "@/lib/supabase";
 import BottomNav from "@/components/layout/BottomNav";
+import FlipClock from "@/components/FlipClock";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -50,7 +51,9 @@ export default function DashboardPage() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [liveMatches, setLiveMatches] = useState<Match[]>([]);
   const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
+  const [todayMatches, setTodayMatches] = useState<Match[]>([]);
   const [totalPoints, setTotalPoints] = useState<number | null>(null);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [, forceUpdate] = useState(0);
   const countdown = useCountdown(WORLD_CUP_START);
@@ -108,11 +111,29 @@ export default function DashboardPage() {
         all.filter((m) => parseISO(m.match_date).getTime() > now).slice(0, 3),
       );
 
+      // Today's matches
+      const todayStr = new Date().toISOString().slice(0, 10);
+      setTodayMatches(
+        all.filter((m) => m.match_date.slice(0, 10) === todayStr).slice(0, 5),
+      );
+
       const pts = (predsData ?? []).reduce(
         (sum: number, p: any) => sum + (p.points ?? 0),
         0,
       );
       setTotalPoints(pts);
+
+      // Fetch top 5 leaderboard for first group (preview)
+      const firstGroup = g[0];
+      if (firstGroup) {
+        const { data: lb } = await supabase
+          .from("leaderboard")
+          .select("user_id, full_name, avatar_url, total_points")
+          .eq("group_id", firstGroup.id)
+          .order("total_points", { ascending: false })
+          .limit(5);
+        setLeaderboard(lb ?? []);
+      }
 
       setLoading(false);
     };
@@ -259,35 +280,21 @@ export default function DashboardPage() {
 
         {/* ===================== COUNTDOWN o PRÓXIMOS ===================== */}
         {!countdown.started ? (
-          <div className="bg-white rounded-3xl shadow-sm p-5 overflow-hidden relative">
-            <div className="absolute -right-4 -top-4 text-7xl opacity-5 select-none">
-              🏆
+          <div
+            className="rounded-3xl overflow-hidden shadow-sm p-5"
+            style={{ background: "linear-gradient(135deg, #0a1628, #0d2147)" }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-white/50 text-[10px] font-bold tracking-widest uppercase">
+                ⏳ Faltan para el Mundial
+              </p>
+              <span className="text-white/30 text-xs">11 Jun 2026</span>
             </div>
-            <p className="text-gray-400 text-xs font-semibold tracking-widest mb-3">
-              ⏳ FALTAN PARA EL MUNDIAL
-            </p>
-            <div className="flex items-end justify-between gap-2">
-              {[
-                { value: countdown.days, label: "días" },
-                { value: countdown.hours, label: "horas" },
-                { value: countdown.minutes, label: "min" },
-                { value: countdown.seconds, label: "seg" },
-              ].map(({ value, label }) => (
-                <div key={label} className="flex-1 text-center">
-                  <div className="bg-blue-100 rounded-2xl py-3 mb-1.5">
-                    <span
-                      className="text-gray-800 text-3xl font-bold tabular-nums"
-                      style={{ fontFamily: "Bebas Neue, sans-serif" }}
-                    >
-                      {pad(value)}
-                    </span>
-                  </div>
-                  <p className="text-gray-400 text-xs">{label}</p>
-                </div>
-              ))}
+            <div className="flex justify-center">
+              <FlipClock />
             </div>
-            <p className="text-center text-gray-400 text-xs mt-3">
-              México 🇲🇽 vs Sudáfrica 🇿🇦 · 11 Jun · Estadio Azteca
+            <p className="text-center text-white/30 text-[10px] mt-4">
+              México 🇲🇽 vs Sudáfrica 🇿🇦 · Estadio Azteca
             </p>
           </div>
         ) : (
@@ -376,6 +383,135 @@ export default function DashboardPage() {
             </svg>
           </div>
         </button>
+
+        {/* ===================== PARTIDOS DE HOY / PRÓXIMOS ===================== */}
+        {(() => {
+          const displayMatches =
+            todayMatches.length > 0 ? todayMatches : upcomingMatches;
+          const title =
+            todayMatches.length > 0 ? "Partidos de hoy" : "Próximos partidos";
+          if (displayMatches.length === 0) return null;
+          return (
+            <div className="bg-white rounded-3xl shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-bold text-gray-800 text-lg">{title}</h2>
+                <button
+                  onClick={() => router.push("/partidos")}
+                  className="text-[#003DA5] text-sm font-semibold"
+                >
+                  Ver todos
+                </button>
+              </div>
+              <div className="space-y-2">
+                {displayMatches.map((match) => {
+                  const live = getLiveStatus(match) === "live";
+                  const finished = match.status === "finished";
+                  return (
+                    <button
+                      key={match.id}
+                      onClick={() => router.push("/partidos")}
+                      className="w-full flex items-center gap-3 bg-gray-50 rounded-2xl px-3 py-2.5 active:scale-95 transition-transform"
+                    >
+                      <span className="text-xl">{match.home_flag}</span>
+                      <span className="text-xs font-semibold text-gray-700 w-16 text-right truncate">
+                        {match.home_team}
+                      </span>
+                      <div className="flex-1 text-center">
+                        {finished ? (
+                          <span
+                            className="text-sm font-bold text-[#003DA5]"
+                            style={{ fontFamily: "Bebas Neue, sans-serif" }}
+                          >
+                            {match.home_score} - {match.away_score}
+                          </span>
+                        ) : live ? (
+                          <span className="flex items-center justify-center gap-1 text-xs font-bold text-red-500">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                            EN VIVO
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400 font-medium">
+                            {format(
+                              parseISO(match.match_date),
+                              "d MMM · HH'h'mm",
+                              { locale: es },
+                            )}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs font-semibold text-gray-700 w-16 truncate">
+                        {match.away_team}
+                      </span>
+                      <span className="text-xl">{match.away_flag}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ===================== MINI TABLA ===================== */}
+        {leaderboard.length > 0 && (
+          <div className="bg-white rounded-3xl shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-800 text-lg">Tabla</h2>
+              <button
+                onClick={() => router.push("/tabla")}
+                className="text-[#003DA5] text-sm font-semibold"
+              >
+                Ver todos
+              </button>
+            </div>
+            <div className="space-y-3">
+              {leaderboard.map((entry, i) => {
+                const isMe = entry.user_id === profile?.id;
+                const medal =
+                  i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
+                return (
+                  <div
+                    key={entry.user_id}
+                    className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 ${
+                      isMe ? "bg-blue-50" : "bg-gray-50"
+                    }`}
+                  >
+                    <span className="w-5 text-center text-sm">
+                      {medal ?? (
+                        <span className="font-bold text-gray-400 text-xs">
+                          {i + 1}
+                        </span>
+                      )}
+                    </span>
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#003DA5] to-blue-400 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {entry.avatar_url ? (
+                        <img
+                          src={entry.avatar_url}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-white text-xs font-bold">
+                          {(entry.full_name ?? "?")[0]}
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      className={`flex-1 text-sm font-semibold truncate ${isMe ? "text-[#003DA5]" : "text-gray-800"}`}
+                    >
+                      {isMe ? "Vos" : (entry.full_name ?? "Usuario")}
+                    </span>
+                    <span
+                      className={`text-xl font-bold tabular-nums ${isMe ? "text-[#003DA5]" : "text-gray-700"}`}
+                      style={{ fontFamily: "Bebas Neue, sans-serif" }}
+                    >
+                      {entry.total_points}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ===================== MIS GRUPOS ===================== */}
         <div className="bg-white rounded-3xl shadow-sm p-5">
