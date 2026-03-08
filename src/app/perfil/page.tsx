@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase, type Profile } from '@/lib/supabase'
 import BottomNav from '@/components/layout/BottomNav'
+import ThemeToggle from '@/components/layout/ThemeToggle'
 import {
   subscribeToPush,
   unsubscribeFromPush,
@@ -172,7 +173,7 @@ export default function PerfilPage() {
   }
 
   if (loading) {
-    return <div className="min-h-dvh flex items-center justify-center bg-[#F0F4FF]">
+    return <div className="min-h-dvh flex items-center justify-center bg-app">
       <div className="w-10 h-10 border-4 border-[#003DA5] border-t-transparent rounded-full animate-spin" />
     </div>
   }
@@ -180,7 +181,7 @@ export default function PerfilPage() {
   const winPct = stats && stats.total > 0 ? Math.round(((stats.exact + stats.partial) / stats.total) * 100) : 0
 
   return (
-    <div className="min-h-dvh bg-[#F0F4FF] pb-24">
+    <div className="min-h-dvh bg-app pb-24">
 
       {/* ── HEADER ────────────────────────────────────────────── */}
       <div className="bg-fifa-pattern px-5 pt-14 pb-20 flex flex-col items-center relative overflow-hidden">
@@ -316,29 +317,29 @@ export default function PerfilPage() {
 
         {/* ── RANKING POR GRUPO ─────────────────────────────────── */}
         {groupRanks.length > 0 && (
-          <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
-            <div className="px-5 pt-4 pb-3 border-b border-gray-100">
-              <h2 className="font-bold text-gray-800 text-base flex items-center gap-2">🏆 Ranking por grupo</h2>
+          <div className="bg-surface rounded-3xl shadow-sm overflow-hidden">
+            <div className="px-5 pt-4 pb-3 border-b border-soft">
+              <h2 className="font-bold text-[color:var(--color-text)] text-base flex items-center gap-2">🏆 Ranking por grupo</h2>
             </div>
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-soft">
               {groupRanks.map(gr => {
                 const medal = gr.rank === 1 ? '🥇' : gr.rank === 2 ? '🥈' : gr.rank === 3 ? '🥉' : null
                 return (
                   <button key={gr.group_id} onClick={() => router.push(`/grupos/${gr.group_id}`)}
-                    className="w-full flex items-center gap-3 px-5 py-3.5 active:bg-gray-50 transition-colors text-left">
+                    className="w-full flex items-center gap-3 px-5 py-3.5 active:bg-surface-2 transition-colors text-left">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-lg"
                       style={{ background: 'linear-gradient(135deg, #003DA5, #1A5FBF)' }}>
                       {medal ?? <span className="text-white font-bold text-sm">#{gr.rank}</span>}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-800 text-sm truncate">{gr.group_name}</p>
-                      <p className="text-gray-400 text-xs">
+                      <p className="font-semibold text-[color:var(--color-text)] text-sm truncate">{gr.group_name}</p>
+                      <p className="text-[color:var(--color-muted)] text-xs">
                         {gr.rank > 0 ? `Puesto ${gr.rank} de ${gr.total_members}` : 'Sin predicciones aún'}
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="font-bold text-[#003DA5] text-xl leading-tight" style={{ fontFamily: 'Bebas Neue, sans-serif' }}>{gr.points}</p>
-                      <p className="text-xs text-gray-400">pts</p>
+                      <p className="text-xs text-[color:var(--color-muted)]">pts</p>
                     </div>
                   </button>
                 )
@@ -348,15 +349,15 @@ export default function PerfilPage() {
         )}
 
         {/* ── EDITAR PERFIL ─────────────────────────────────────── */}
-        <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
-          <div className="px-5 pt-4 pb-3 border-b border-gray-100">
-            <h2 className="font-bold text-gray-800 text-base">Editar perfil</h2>
+        <div className="bg-surface rounded-3xl shadow-sm overflow-hidden">
+          <div className="px-5 pt-4 pb-3 border-b border-soft">
+            <h2 className="font-bold text-[color:var(--color-text)] text-base">Editar perfil</h2>
           </div>
           <div className="px-5 py-4 space-y-3">
             <div>
               <label className="block text-xs font-bold text-gray-400 mb-1.5 tracking-widest uppercase">Nombre</label>
               <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Tu nombre"
-                className="w-full bg-[#F0F4FF] border-2 border-transparent rounded-2xl px-4 py-3.5 text-gray-800 focus:outline-none focus:border-[#003DA5] transition-colors" />
+                className="w-full bg-surface-2 border-2 border-transparent rounded-2xl px-4 py-3.5 text-[color:var(--color-text)] focus:outline-none focus:border-[#003DA5] transition-colors" />
             </div>
             <button onClick={handleSave} disabled={saving || !name.trim()}
               className="w-full py-3.5 rounded-2xl font-semibold text-white transition-all active:scale-95 disabled:opacity-50"
@@ -368,9 +369,9 @@ export default function PerfilPage() {
 
         {/* ── REGLAS (compacto, clickeable → /ayuda) ────────────── */}
         <button onClick={() => router.push('/ayuda')}
-          className="w-full text-left bg-white rounded-3xl shadow-sm overflow-hidden active:scale-95 transition-transform">
-          <div className="px-5 pt-4 pb-3 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-bold text-gray-800 text-base">📋 Reglas del prode</h2>
+          className="w-full text-left bg-surface rounded-3xl shadow-sm overflow-hidden active:scale-95 transition-transform">
+          <div className="px-5 pt-4 pb-3 border-b border-soft flex items-center justify-between">
+            <h2 className="font-bold text-[color:var(--color-text)] text-base">📋 Reglas del prode</h2>
             <span className="text-[#003DA5] text-xs font-semibold flex items-center gap-0.5">
               Ver todo
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -393,19 +394,19 @@ export default function PerfilPage() {
           </div>
           <p className="px-5 pb-4 text-xs text-gray-400 flex items-center gap-1.5 mt-1">
             <span>⏰</span>
-            Hasta <strong className="text-gray-600">24hs antes</strong> de cada partido
+            Hasta <strong className="text-[color:var(--color-text-2)]">24hs antes</strong> de cada partido
           </p>
         </button>
 
         {/* ── NOTIFICACIONES ────────────────────────────────────── */}
         {notifStatus !== 'checking' && (
-          <div className="bg-white rounded-3xl shadow-sm p-5">
+          <div className="bg-surface rounded-3xl shadow-sm p-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-[#F0F4FF] flex items-center justify-center text-xl flex-shrink-0">🔔</div>
+                <div className="w-10 h-10 rounded-2xl bg-surface-2 flex items-center justify-center text-xl flex-shrink-0">🔔</div>
                 <div>
-                  <p className="font-bold text-gray-800 text-sm">Notificaciones</p>
-                  <p className="text-xs text-gray-400">
+                  <p className="font-bold text-[color:var(--color-text)] text-sm">Notificaciones</p>
+                  <p className="text-xs text-[color:var(--color-muted)]">
                     {notifStatus === 'denied' ? 'Bloqueadas en este navegador'
                       : notifStatus === 'granted' ? 'Activadas'
                       : 'Desactivadas'}
@@ -434,9 +435,23 @@ export default function PerfilPage() {
           </div>
         )}
 
+        {/* ── APARIENCIA ────────────────────────────────────────── */}
+        <div className="bg-surface rounded-3xl shadow-sm p-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-surface-2 flex items-center justify-center text-xl flex-shrink-0">🎨</div>
+              <div>
+                <p className="font-bold text-[color:var(--color-text)] text-sm">Modo oscuro</p>
+                <p className="text-xs text-[color:var(--color-muted)]">Cambia el tema de la app</p>
+              </div>
+            </div>
+            <ThemeToggle variant="settings" />
+          </div>
+        </div>
+
         {/* ── CERRAR SESIÓN ─────────────────────────────────────── */}
         <button onClick={handleLogout}
-          className="w-full py-4 rounded-2xl font-semibold text-[#E30613] border-2 border-[#E30613]/20 bg-white active:scale-95 transition-transform">
+          className="w-full py-4 rounded-2xl font-semibold text-[#E30613] border-2 border-[#E30613]/20 bg-surface active:scale-95 transition-transform">
           Cerrar sesión
         </button>
 

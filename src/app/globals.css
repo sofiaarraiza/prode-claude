@@ -4,36 +4,74 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ══════════════════════════════════════════
+   LIGHT MODE (default)
+══════════════════════════════════════════ */
 :root {
   --font-display: "Bebas Neue", sans-serif;
   --font-body: "DM Sans", sans-serif;
 
-  /* Primary — deep royal blue */
+  /* Brand */
   --color-primary: #0038a8;
   --color-primary-dark: #002580;
   --color-primary-light: #1a55c4;
 
-  /* Surface & backgrounds */
-  --color-bg: #f4f6fb;
+  /* Backgrounds */
+  --color-bg: #f0f4ff;
   --color-surface: #ffffff;
   --color-surface-2: #eef1f8;
+  --color-surface-3: #e4e9f4;
+
+  /* Borders */
+  --color-border: #e4e9f4;
+  --color-border-soft: #eef1f8;
 
   /* Text */
   --color-text: #0d1b3e;
+  --color-text-2: #374151;
   --color-muted: #6b7a99;
+  --color-muted-2: #9ca3af;
 
-  /* Green CTA */
-  --color-green: #12a150;
-  --color-green-dark: #0d8742;
-
-  /* Amber / points */
+  /* Accent */
   --color-amber: #e8a900;
+  --color-green: #12a150;
 
-  /* Legacy aliases */
+  /* Legacy */
   --fifa-blue: var(--color-primary);
   --fifa-blue-dark: var(--color-primary-dark);
 }
 
+/* ══════════════════════════════════════════
+   DARK MODE
+══════════════════════════════════════════ */
+.dark {
+  --color-primary: #4d8ef0;
+  --color-primary-dark: #2563eb;
+  --color-primary-light: #6ba3f5;
+
+  --color-bg: #0f1117;
+  --color-surface: #1a1d27;
+  --color-surface-2: #22263a;
+  --color-surface-3: #2a2f45;
+
+  --color-border: #2a2f45;
+  --color-border-soft: #22263a;
+
+  --color-text: #f0f4ff;
+  --color-text-2: #c9d4ea;
+  --color-muted: #7a8aaa;
+  --color-muted-2: #5a6880;
+
+  --color-amber: #fbbf24;
+  --color-green: #34d399;
+
+  --fifa-blue: var(--color-primary);
+  --fifa-blue-dark: var(--color-primary-dark);
+}
+
+/* ══════════════════════════════════════════
+   BASE
+══════════════════════════════════════════ */
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
@@ -49,65 +87,46 @@ body {
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
   min-height: 100dvh;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* ===== Hero / Header gradient ===== */
+/* ══════════════════════════════════════════
+   HERO GRADIENT — el header azul de todas las páginas
+══════════════════════════════════════════ */
 .bg-fifa-pattern {
-  background: linear-gradient(
-    145deg,
-    var(--color-primary-dark) 0%,
-    var(--color-primary) 55%,
-    var(--color-primary-light) 100%
-  );
-  background-image:
-    linear-gradient(
-      145deg,
-      var(--color-primary-dark) 0%,
-      var(--color-primary) 55%,
-      var(--color-primary-light) 100%
-    ),
-    radial-gradient(
-      circle at 15% 60%,
-      rgba(255, 255, 255, 0.07) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      circle at 85% 15%,
-      rgba(255, 255, 255, 0.05) 0%,
-      transparent 40%
-    );
+  background:
+    linear-gradient(145deg, #002580 0%, #0038a8 55%, #1a55c4 100%),
+    radial-gradient(circle at 15% 60%, rgba(255,255,255,0.07) 0%, transparent 50%),
+    radial-gradient(circle at 85% 15%, rgba(255,255,255,0.05) 0%, transparent 40%);
   background-blend-mode: normal, screen, screen;
 }
 
-/* ===== Diagonal hero accent ===== */
-.hero-diagonal::after {
-  content: "";
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  right: 0;
-  height: 48px;
-  background: var(--color-bg);
-  clip-path: ellipse(60% 100% at 50% 100%);
+/* Dark: header ligeramente más oscuro/saturado */
+.dark .bg-fifa-pattern {
+  background:
+    linear-gradient(145deg, #0a1628 0%, #0d2147 55%, #1a3070 100%),
+    radial-gradient(circle at 15% 60%, rgba(255,255,255,0.04) 0%, transparent 50%),
+    radial-gradient(circle at 85% 15%, rgba(255,255,255,0.03) 0%, transparent 40%);
+  background-blend-mode: normal, screen, screen;
 }
 
-/* ===== Card shimmer / skeleton ===== */
-.skeleton {
-  background: linear-gradient(90deg, #e4e9f4 25%, #d4dbee 50%, #e4e9f4 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
+/* ══════════════════════════════════════════
+   SURFACE UTILITIES (para usar en lugar de bg-white, bg-[#F0F4FF], etc.)
+   Usalas así: className="bg-surface"
+══════════════════════════════════════════ */
+.bg-surface    { background-color: var(--color-surface); }
+.bg-surface-2  { background-color: var(--color-surface-2); }
+.bg-surface-3  { background-color: var(--color-surface-3); }
+.bg-app        { background-color: var(--color-bg); }
+.text-primary  { color: var(--color-text); }
+.text-secondary { color: var(--color-text-2); }
+.text-muted    { color: var(--color-muted); }
+.border-soft   { border-color: var(--color-border); }
+.divide-soft > * + * { border-color: var(--color-border-soft); }
 
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-/* ===== Score input ===== */
+/* ══════════════════════════════════════════
+   SCORE INPUT
+══════════════════════════════════════════ */
 .score-input {
   width: 3.5rem;
   height: 3.5rem;
@@ -115,69 +134,68 @@ body {
   font-family: var(--font-display);
   font-size: 1.75rem;
   border-radius: 12px;
-  border: 2px solid #c9d4ea;
-  background: white;
+  border: 2px solid var(--color-border);
+  background: var(--color-surface);
   color: var(--color-primary);
   transition: all 0.2s;
   -moz-appearance: textfield;
 }
-
 .score-input::-webkit-outer-spin-button,
-.score-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
+.score-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .score-input:focus {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(0, 56, 168, 0.12);
 }
-
+.dark .score-input:focus {
+  box-shadow: 0 0 0 3px rgba(77, 142, 240, 0.2);
+}
 .score-input:disabled {
   background: var(--color-surface-2);
   color: var(--color-muted);
   cursor: not-allowed;
 }
 
-/* ===== Scrollbar ===== */
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 56, 168, 0.25);
-  border-radius: 2px;
+/* ══════════════════════════════════════════
+   SKELETON
+══════════════════════════════════════════ */
+.skeleton {
+  background: linear-gradient(90deg, var(--color-surface-2) 25%, var(--color-surface-3) 50%, var(--color-surface-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }
 
-/* ===== Bottom nav safe area ===== */
-.bottom-nav {
-  padding-bottom: env(safe-area-inset-bottom);
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
-/* ===== Transition helpers ===== */
-.transition-all-200 {
-  transition: all 0.2s ease;
-}
+/* ══════════════════════════════════════════
+   SCROLLBAR
+══════════════════════════════════════════ */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0, 56, 168, 0.2); border-radius: 2px; }
+.dark ::-webkit-scrollbar-thumb { background: rgba(77, 142, 240, 0.2); }
 
-/* ===== Points badges ===== */
-.points-exact {
-  background: var(--color-primary);
-  color: white;
-}
-.points-partial {
-  background: var(--color-amber);
-  color: white;
-}
-.points-zero {
-  background: #e4e9f4;
-  color: var(--color-muted);
-}
-.points-pending {
-  background: var(--color-surface-2);
-  color: var(--color-muted);
-  border: 2px dashed #c9d4ea;
+/* ══════════════════════════════════════════
+   BOTTOM NAV SAFE AREA
+══════════════════════════════════════════ */
+.bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+/* ══════════════════════════════════════════
+   POINTS BADGES
+══════════════════════════════════════════ */
+.points-exact   { background: var(--color-primary); color: white; }
+.points-partial { background: var(--color-amber); color: white; }
+.points-zero    { background: var(--color-surface-2); color: var(--color-muted); }
+.points-pending { background: var(--color-surface-2); color: var(--color-muted); border: 2px dashed var(--color-border); }
+
+/* ══════════════════════════════════════════
+   SCORE INPUT EMPTY STATE
+══════════════════════════════════════════ */
+.score-input-empty {
+  border-color: #f97316 !important;
+  border-style: dashed !important;
 }

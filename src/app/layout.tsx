@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import NavigationWrapper from "@/components/layout/NavigationWrapper";
+import ThemeProvider from "@/components/layout/ThemeProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,18 +19,34 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#003DA5",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#003DA5" },
+    { media: "(prefers-color-scheme: dark)",  color: "#0d2147" },
+  ],
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+// Script que corre ANTES del paint para evitar flash de tema incorrecto
+const themeScript = `
+(function(){
+  try {
+    var t = localStorage.getItem('theme');
+    if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    if (t === 'dark') document.documentElement.classList.add('dark');
+  } catch(e){}
+})();
+`;
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es">
-      <body className="max-w-md mx-auto min-h-dvh relative">
-        <NavigationWrapper>{children}</NavigationWrapper>
+    <html lang="es" suppressHydrationWarning>
+      <head>
+        {/* Anti-FOUC: aplica clase dark antes del primer paint */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body className="max-w-md mx-auto min-h-dvh relative bg-app">
+        <ThemeProvider>
+          <NavigationWrapper>{children}</NavigationWrapper>
+        </ThemeProvider>
       </body>
     </html>
   );
