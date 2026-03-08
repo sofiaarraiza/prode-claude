@@ -83,7 +83,7 @@ function MatchCard({
   return (
     <div
       className={`rounded-2xl overflow-hidden shadow-sm border transition-all flex-shrink-0 w-[140px] ${
-        highlight ? "border-yellow-400 shadow-yellow-200" : "border-gray-100"
+        highlight ? "border-yellow-400 shadow-yellow-200" : "border-soft"
       } ${isDefined ? "bg-white" : "bg-gray-50"}`}
     >
       {/* Date row */}
@@ -265,7 +265,7 @@ export default function BracketPage() {
 
   if (loading) {
     return (
-      <div className="min-h-dvh flex items-center justify-center bg-[#F4F6FB]">
+      <div className="min-h-dvh flex items-center justify-center bg-app">
         <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );

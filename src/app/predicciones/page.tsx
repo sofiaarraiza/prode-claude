@@ -214,7 +214,7 @@ function PrediccionesContent() {
 
   if (loading) {
     return (
-      <div className="min-h-dvh bg-[#F0F4FF] flex items-center justify-center">
+      <div className="min-h-dvh bg-app flex items-center justify-center">
         <div className="w-10 h-10 border-4 border-[#003DA5] border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -235,7 +235,7 @@ function PrediccionesContent() {
   });
 
   return (
-    <div className="min-h-dvh bg-[#F0F4FF] pb-24">
+    <div className="min-h-dvh bg-app pb-24">
       {/* Header */}
       <div className="bg-fifa-pattern px-5 pt-14 pb-4">
         <p className="text-white/60 text-xs tracking-widest mb-1">
@@ -281,7 +281,8 @@ function PrediccionesContent() {
               Necesitás un grupo para predecir
             </p>
             <p className="text-white/80 text-xs mb-3">
-              Las predicciones se guardan dentro de un grupo. Sin grupo no podés jugar.
+              Las predicciones se guardan dentro de un grupo. Sin grupo no podés
+              jugar.
             </p>
             <button
               onClick={() => router.push("/grupos")}
@@ -306,7 +307,7 @@ function PrediccionesContent() {
               }}
               className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${
                 viewMode === mode
-                  ? "bg-white text-[#003DA5]"
+                  ? "bg-white text-[color:var(--color-primary)]"
                   : "bg-white/20 text-white"
               }`}
             >
@@ -322,10 +323,10 @@ function PrediccionesContent() {
 
       {/* Search bar */}
       {viewMode === "buscar" && (
-        <div className="px-4 py-3 bg-white border-b border-gray-100 sticky top-0 z-20">
+        <div className="px-4 py-3 bg-surface border-b border-soft sticky top-0 z-20">
           <div className="relative">
             <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--color-muted)]"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -343,20 +344,20 @@ function PrediccionesContent() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscá un equipo... ej: Argentina"
-              className="w-full bg-[#F0F4FF] rounded-xl pl-9 pr-9 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#003DA5]"
+              className="w-full bg-surface-2 rounded-xl pl-9 pr-9 py-3 text-sm text-[color:var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[#003DA5]"
               autoComplete="off"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg leading-none"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--color-muted)] text-lg leading-none"
               >
                 ✕
               </button>
             )}
           </div>
           {searchQuery && (
-            <p className="text-xs text-gray-400 mt-1.5 pl-1">
+            <p className="text-xs text-[color:var(--color-muted)] mt-1.5 pl-1">
               {searchResults.length} partido
               {searchResults.length !== 1 ? "s" : ""} encontrado
               {searchResults.length !== 1 ? "s" : ""}
@@ -367,7 +368,7 @@ function PrediccionesContent() {
 
       {/* Group tabs */}
       {viewMode === "grupos" && (
-        <div className="bg-white border-b border-gray-100 sticky top-0 z-20">
+        <div className="bg-surface border-b border-soft sticky top-0 z-20">
           <div
             className="overflow-x-auto flex px-4 py-2 gap-1"
             style={{ scrollbarWidth: "none" }}
@@ -379,7 +380,7 @@ function PrediccionesContent() {
                 className={`flex-shrink-0 w-9 h-9 rounded-xl font-bold text-sm transition-all active:scale-90 ${
                   activeTab === g
                     ? "bg-[#003DA5] text-white"
-                    : "bg-gray-100 text-gray-500"
+                    : "bg-surface-2 text-[color:var(--color-muted)]"
                 }`}
               >
                 {g}
@@ -402,13 +403,13 @@ function PrediccionesContent() {
           Object.entries(matchesByDate).map(([dateKey, dayMatches]) => (
             <div key={dateKey}>
               <div className="flex items-center gap-2 mb-3 mt-2">
-                <div className="h-px flex-1 bg-gray-200" />
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wide px-1">
+                <div className="h-px flex-1 bg-[color:var(--color-border)]" />
+                <span className="text-xs font-bold text-[color:var(--color-muted)] uppercase tracking-wide px-1">
                   {format(parseISO(dateKey + "T12:00:00"), "EEEE d 'de' MMMM", {
                     locale: es,
                   })}
                 </span>
-                <div className="h-px flex-1 bg-gray-200" />
+                <div className="h-px flex-1 bg-[color:var(--color-border)]" />
               </div>
               <div className="space-y-3">
                 {dayMatches.map((match) => (
@@ -425,7 +426,7 @@ function PrediccionesContent() {
         {viewMode === "buscar" && !searchQuery && (
           <div className="text-center py-12">
             <span className="text-5xl block mb-3">🔍</span>
-            <p className="text-gray-400 text-sm mb-4">
+            <p className="text-[color:var(--color-muted)] text-sm mb-4">
               Escribí el nombre de un equipo
             </p>
             <div className="flex flex-wrap gap-2 justify-center">
@@ -442,7 +443,7 @@ function PrediccionesContent() {
                 <button
                   key={team}
                   onClick={() => setSearchQuery(team)}
-                  className="bg-white border border-gray-200 text-gray-600 text-xs px-3 py-1.5 rounded-full active:scale-95 transition-transform"
+                  className="bg-surface border border-soft text-[color:var(--color-text-2)] text-xs px-3 py-1.5 rounded-full active:scale-95 transition-transform"
                 >
                   {team}
                 </button>
@@ -454,7 +455,7 @@ function PrediccionesContent() {
         {viewMode === "buscar" && searchQuery && searchResults.length === 0 && (
           <div className="text-center py-12">
             <span className="text-4xl block mb-3">😕</span>
-            <p className="text-gray-400 text-sm">
+            <p className="text-[color:var(--color-muted)] text-sm">
               No encontramos "{searchQuery}"
             </p>
           </div>
@@ -512,7 +513,7 @@ function MatchCard({
     if (status !== "finished") return null;
     if (!prediction)
       return (
-        <span className="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">
+        <span className="text-xs bg-surface-2 text-[color:var(--color-muted)] px-2 py-0.5 rounded-full">
           Sin pred.
         </span>
       );
@@ -529,7 +530,7 @@ function MatchCard({
         </span>
       );
     return (
-      <span className="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">
+      <span className="text-xs bg-surface-2 text-[color:var(--color-muted)] px-2 py-0.5 rounded-full">
         0 pts
       </span>
     );
@@ -542,18 +543,21 @@ function MatchCard({
     return "·";
   };
 
-  const isEditing = (prediction?.home !== undefined || prediction?.away !== undefined) && !prediction?.saved && status === "open";
+  const isEditing =
+    (prediction?.home !== undefined || prediction?.away !== undefined) &&
+    !prediction?.saved &&
+    status === "open";
 
   return (
     <div
-      className={`bg-white rounded-3xl overflow-hidden shadow-sm transition-all duration-200
+      className={`bg-surface rounded-3xl overflow-hidden shadow-sm transition-all duration-200
         ${status === "finished" ? "opacity-90" : ""}
         ${isEditing ? "ring-2 ring-[#003DA5] shadow-md shadow-[#003DA5]/20" : ""}
       `}
     >
       {/* Match header */}
-      <div className="px-4 py-2.5 flex items-center justify-between bg-[#F8FAFF] border-b border-gray-100">
-        <div className="flex items-center gap-2 text-xs text-gray-500">
+      <div className="px-4 py-2.5 flex items-center justify-between bg-surface-2 border-b border-soft">
+        <div className="flex items-center gap-2 text-xs text-[color:var(--color-muted)]">
           {showGroup && (
             <span className="bg-[#003DA5] text-white px-1.5 py-0.5 rounded text-xs font-bold">
               G{match.group_name}
@@ -568,7 +572,7 @@ function MatchCard({
               🔒 Bloqueado
             </span>
           )}
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-[color:var(--color-muted)]">
             {format(matchDate, "d MMM · HH'h'mm", { locale: es })}
           </span>
         </div>
@@ -579,7 +583,7 @@ function MatchCard({
         <div className="flex items-center gap-2">
           <div className="flex-1 text-center">
             <span className="text-3xl block mb-1">{match.home_flag}</span>
-            <p className="text-xs font-semibold text-gray-700 leading-tight">
+            <p className="text-xs font-semibold text-[color:var(--color-text-2)] leading-tight">
               {match.home_team}
             </p>
           </div>
@@ -589,21 +593,23 @@ function MatchCard({
               <div className="text-center">
                 <div className="flex items-center gap-2 mb-1">
                   <span
-                    className="font-display text-3xl text-[#003DA5]"
+                    className="font-display text-3xl text-[color:var(--color-primary)]"
                     style={{ fontFamily: "Bebas Neue, sans-serif" }}
                   >
                     {match.home_score ?? "-"}
                   </span>
-                  <span className="text-gray-300 font-bold">:</span>
+                  <span className="text-[color:var(--color-border)] font-bold">
+                    :
+                  </span>
                   <span
-                    className="font-display text-3xl text-[#003DA5]"
+                    className="font-display text-3xl text-[color:var(--color-primary)]"
                     style={{ fontFamily: "Bebas Neue, sans-serif" }}
                   >
                     {match.away_score ?? "-"}
                   </span>
                 </div>
                 {prediction && (
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-[color:var(--color-muted)]">
                     Tu pred:{" "}
                     <strong>
                       {prediction.home}-{prediction.away}
@@ -624,7 +630,9 @@ function MatchCard({
                   className={`score-input ${!prediction?.home && prediction?.home !== "0" ? "score-input-empty" : ""}`}
                   placeholder="?"
                 />
-                <span className="text-gray-300 font-bold text-xl">:</span>
+                <span className="text-[color:var(--color-border)] font-bold text-xl">
+                  :
+                </span>
                 <input
                   type="number"
                   min={0}
@@ -642,7 +650,7 @@ function MatchCard({
 
           <div className="flex-1 text-center">
             <span className="text-3xl block mb-1">{match.away_flag}</span>
-            <p className="text-xs font-semibold text-gray-700 leading-tight">
+            <p className="text-xs font-semibold text-[color:var(--color-text-2)] leading-tight">
               {match.away_team}
             </p>
           </div>
@@ -652,12 +660,12 @@ function MatchCard({
         {status === "open" && selectedGroup && (
           <div className="mt-3 flex items-center justify-center">
             {saving ? (
-              <span className="text-xs text-gray-400 flex items-center gap-1">
-                <span className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs text-[color:var(--color-muted)] flex items-center gap-1">
+                <span className="w-3 h-3 border-2 border-[color:var(--color-muted)] border-t-transparent rounded-full animate-spin" />
                 Guardando...
               </span>
             ) : prediction?.saved ? (
-              <span className="text-xs text-green-600 flex items-center gap-1">
+              <span className="text-xs text-green-500 flex items-center gap-1">
                 ✅ Guardado
               </span>
             ) : hasUnsaved ? (
@@ -668,7 +676,7 @@ function MatchCard({
                 Guardar predicción
               </button>
             ) : (
-              <span className="text-xs text-gray-300">
+              <span className="text-xs text-[color:var(--color-muted-2)]">
                 Ingresá tu predicción
               </span>
             )}
@@ -679,7 +687,7 @@ function MatchCard({
         {hasTeammates && (
           <button
             onClick={onToggleExpand}
-            className="w-full mt-3 flex items-center justify-center gap-1.5 text-xs text-[#003DA5] font-semibold py-2 rounded-xl bg-[#F0F4FF] active:scale-95 transition-transform"
+            className="w-full mt-3 flex items-center justify-center gap-1.5 text-xs text-[color:var(--color-primary)] font-semibold py-2 rounded-xl bg-surface-2 active:scale-95 transition-transform"
           >
             <svg
               className="w-3.5 h-3.5"
@@ -716,13 +724,13 @@ function MatchCard({
 
       {/* Teammates predictions panel */}
       {expanded && hasTeammates && (
-        <div className="border-t border-gray-100 bg-[#F8FAFF]">
-          <div className="px-4 py-2 border-b border-gray-100">
-            <p className="text-xs font-bold text-gray-400 tracking-wide">
+        <div className="border-t border-soft bg-surface-2">
+          <div className="px-4 py-2 border-b border-soft">
+            <p className="text-xs font-bold text-[color:var(--color-muted)] tracking-wide">
               PREDICCIONES DEL GRUPO
             </p>
           </div>
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-soft">
             {teammatesPreds
               .sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
               .map((t) => (
@@ -750,13 +758,13 @@ function MatchCard({
                     )}
                   </div>
                   {/* Name */}
-                  <span className="flex-1 text-sm text-gray-700 font-semibold truncate">
+                  <span className="flex-1 text-sm text-[color:var(--color-text-2)] font-semibold truncate">
                     {t.full_name}
                   </span>
                   {/* Prediction */}
                   <div className="flex items-center gap-2">
                     <span
-                      className="text-sm font-bold text-gray-800 tabular-nums"
+                      className="text-sm font-bold text-[color:var(--color-text)] tabular-nums"
                       style={{ fontFamily: "Bebas Neue, sans-serif" }}
                     >
                       {t.predicted_home_score} - {t.predicted_away_score}
@@ -769,7 +777,7 @@ function MatchCard({
                             ? "bg-[#003DA5] text-white"
                             : t.points === 1
                               ? "bg-amber-400 text-white"
-                              : "bg-gray-100 text-gray-400"
+                              : "bg-surface-3 text-[color:var(--color-muted)]"
                         }`}
                       >
                         {t.points > 0 ? `+${t.points}` : "0"}
@@ -789,7 +797,7 @@ export default function PrediccionesPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-dvh bg-[#F0F4FF] flex items-center justify-center">
+        <div className="min-h-dvh bg-app flex items-center justify-center">
           <div className="w-10 h-10 border-4 border-[#003DA5] border-t-transparent rounded-full animate-spin" />
         </div>
       }

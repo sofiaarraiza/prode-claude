@@ -145,7 +145,7 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <div className="min-h-dvh bg-[#F0F4FF] flex items-center justify-center">
+      <div className="min-h-dvh bg-app flex items-center justify-center">
         <div className="w-10 h-10 border-4 border-[#003DA5] border-t-transparent rounded-full animate-spin" />
       </div>
     );

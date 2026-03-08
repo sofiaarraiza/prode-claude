@@ -138,7 +138,7 @@ export default function GrupoDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-dvh bg-[#F4F6FB] flex items-center justify-center">
+      <div className="min-h-dvh bg-app flex items-center justify-center">
         <div className="w-10 h-10 border-4 border-[#003DA5] border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -146,12 +146,12 @@ export default function GrupoDetailPage() {
 
   if (!group) {
     return (
-      <div className="min-h-dvh bg-[#F4F6FB] flex items-center justify-center px-5">
+      <div className="min-h-dvh bg-app flex items-center justify-center px-5">
         <div className="text-center">
           <p className="text-gray-500 mb-4">Grupo no encontrado</p>
           <button
             onClick={() => router.push("/grupos")}
-            className="text-[#003DA5] font-semibold"
+            className="text-[color:var(--color-primary)] font-semibold"
           >
             Volver
           </button>
@@ -161,12 +161,31 @@ export default function GrupoDetailPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-[#F4F6FB] pb-24">
+    <div className="min-h-dvh bg-app pb-24">
       {/* Header — sin botón volver, nombre editable para admin */}
       <div className="bg-fifa-pattern px-5 pt-14 pb-14 relative overflow-hidden">
         <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/5" />
 
-        <div className="flex items-start justify-between mb-5 relative z-10">
+        <div className="flex items-start gap-3 mb-5 relative z-10">
+          {/* Back button */}
+          <button
+            onClick={() => router.back()}
+            className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white/10 text-white active:scale-90 transition-transform mt-0.5"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+          </button>
           <div className="flex-1 min-w-0">
             <p className="text-white/60 text-xs tracking-widest mb-1">GRUPO</p>
             {editingName ? (
@@ -184,7 +203,7 @@ export default function GrupoDetailPage() {
                 <button
                   onClick={handleSaveName}
                   disabled={savingName}
-                  className="bg-white text-[#003DA5] text-xs font-bold px-3 py-1.5 rounded-xl active:scale-95 transition-transform disabled:opacity-50"
+                  className="bg-surface text-[color:var(--color-primary)] text-xs font-bold px-3 py-1.5 rounded-xl active:scale-95 transition-transform disabled:opacity-50"
                 >
                   {savingName ? "..." : "✓"}
                 </button>
@@ -330,16 +349,16 @@ export default function GrupoDetailPage() {
         >
           <div className="absolute inset-0 bg-black/40" />
           <div
-            className="relative w-full bg-white rounded-t-3xl p-5 pb-10 max-h-[75vh] overflow-y-auto"
+            className="relative w-full bg-surface rounded-t-3xl p-5 pb-10 max-h-[75vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+            <div className="w-10 h-1 bg-surface-3 rounded-full mx-auto mb-4" />
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-gray-800 text-lg">
+              <h2 className="font-bold text-[color:var(--color-text)] text-lg">
                 👥 Jugadores ({members.length})
               </h2>
               {isAdmin && (
-                <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+                <span className="text-xs text-[color:var(--color-muted)] bg-surface-2 px-2 py-1 rounded-full">
                   Sos el admin
                 </span>
               )}
@@ -351,7 +370,7 @@ export default function GrupoDetailPage() {
                 return (
                   <div
                     key={member.user_id}
-                    className={`flex items-center gap-3 rounded-2xl px-4 py-3 ${isMe ? "bg-[#EEF1F8]" : "bg-gray-50"}`}
+                    className={`flex items-center gap-3 rounded-2xl px-4 py-3 ${isMe ? "bg-surface-2" : "bg-surface-2/60"}`}
                   >
                     <div
                       className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0"
@@ -381,15 +400,15 @@ export default function GrupoDetailPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-800 text-sm truncate">
+                      <p className="font-semibold text-[color:var(--color-text)] text-sm truncate">
                         {member.full_name ?? member.email ?? "Jugador"}
                         {isMe && (
-                          <span className="text-xs text-gray-400 ml-1">
+                          <span className="text-xs text-[color:var(--color-muted)] ml-1">
                             (yo)
                           </span>
                         )}
                         {group.admin_id === member.user_id && (
-                          <span className="text-xs text-[#003DA5] ml-1">
+                          <span className="text-xs text-[color:var(--color-primary)] ml-1">
                             · admin
                           </span>
                         )}
@@ -452,35 +471,35 @@ export default function GrupoDetailPage() {
         </button>
 
         {/* Leaderboard */}
-        <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
-          <div className="px-5 pt-5 pb-3 border-b border-gray-100">
-            <h2 className="font-bold text-gray-800 text-lg flex items-center gap-2">
+        <div className="bg-surface rounded-3xl shadow-sm overflow-hidden">
+          <div className="px-5 pt-5 pb-3 border-b border-soft">
+            <h2 className="font-bold text-[color:var(--color-text)] text-lg flex items-center gap-2">
               <span>🏆</span> Tabla de posiciones
             </h2>
           </div>
           {leaderboard.length === 0 ? (
             <div className="text-center py-10 px-5">
               <span className="text-4xl block mb-3">📊</span>
-              <p className="text-gray-500 text-sm">
+              <p className="text-[color:var(--color-muted)] text-sm">
                 Todavía no hay predicciones cargadas. Los puntos van a aparecer
                 cuando se jueguen los primeros partidos.
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-soft">
               {leaderboard.map((entry, index) => {
                 const isMe = entry.user_id === currentUserId;
                 const medal = medalEmoji(index);
                 return (
                   <div
                     key={entry.user_id}
-                    className={`flex items-center gap-3 px-5 py-4 ${isMe ? "bg-[#EEF1F8]" : ""}`}
+                    className={`flex items-center gap-3 px-5 py-4 ${isMe ? "bg-surface-2" : ""}`}
                   >
                     <div className="w-8 text-center text-lg">
                       {["🥇", "🥈", "🥉"].includes(medal) ? (
                         <span className="text-xl">{medal}</span>
                       ) : (
-                        <span className="text-gray-400 font-bold text-sm">
+                        <span className="text-[color:var(--color-muted)] font-bold text-sm">
                           {medal}
                         </span>
                       )}
@@ -505,11 +524,13 @@ export default function GrupoDetailPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p
-                        className={`font-semibold text-sm truncate ${isMe ? "text-[#003DA5]" : "text-gray-800"}`}
+                        className={`font-semibold text-sm truncate ${isMe ? "text-[color:var(--color-primary)]" : "text-[color:var(--color-text)]"}`}
                       >
                         {entry.full_name ?? "Jugador"}{" "}
                         {isMe && (
-                          <span className="text-xs text-gray-400">(yo)</span>
+                          <span className="text-xs text-[color:var(--color-muted)]">
+                            (yo)
+                          </span>
                         )}
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
@@ -519,19 +540,21 @@ export default function GrupoDetailPage() {
                         <span className="text-xs text-amber-500">
                           🟡 {entry.partial_results}
                         </span>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-[color:var(--color-muted)]">
                           ❌ {entry.wrong_results}
                         </span>
                       </div>
                     </div>
                     <div className="text-right">
                       <p
-                        className="font-display text-2xl text-[#003DA5]"
+                        className="font-display text-2xl text-[color:var(--color-primary)]"
                         style={{ fontFamily: "Bebas Neue, sans-serif" }}
                       >
                         {entry.total_points}
                       </p>
-                      <p className="text-xs text-gray-400">pts</p>
+                      <p className="text-xs text-[color:var(--color-muted)]">
+                        pts
+                      </p>
                     </div>
                   </div>
                 );

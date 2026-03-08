@@ -4,6 +4,65 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, type Group, type LeaderboardEntry } from "@/lib/supabase";
 
+function Avatar({
+  url,
+  name,
+  size = "sm",
+}: {
+  url: string | null;
+  name: string | null;
+  size?: "sm" | "md" | "lg";
+}) {
+  const [failed, setFailed] = useState(false);
+  const letter = (name ?? "U")[0].toUpperCase();
+  const textClass =
+    size === "lg" ? "text-lg" : size === "md" ? "text-base" : "text-xs";
+
+  // Custom emoji avatar stored as "avatar:{emoji, color}"
+  if (url?.startsWith("avatar:")) {
+    try {
+      const { emoji, color } = JSON.parse(url.slice(7));
+      return (
+        <div
+          className="w-full h-full flex items-center justify-center"
+          style={{ background: color }}
+        >
+          <span
+            className={
+              size === "lg" ? "text-2xl" : size === "md" ? "text-xl" : "text-sm"
+            }
+          >
+            {emoji}
+          </span>
+        </div>
+      );
+    } catch {
+      // fall through to letter
+    }
+  }
+
+  // Regular photo URL
+  if (url && !failed) {
+    return (
+      <img
+        src={url}
+        alt=""
+        className="w-full h-full object-cover"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
+  // Fallback: initial letter
+  return (
+    <span
+      className={`w-full h-full flex items-center justify-center text-white font-bold ${textClass}`}
+    >
+      {letter}
+    </span>
+  );
+}
+
 export default function TablaPage() {
   const router = useRouter();
   const [groups, setGroups] = useState<Group[]>([]);
@@ -53,14 +112,14 @@ export default function TablaPage() {
 
   if (loading) {
     return (
-      <div className="min-h-dvh bg-[#F0F4FF] flex items-center justify-center">
+      <div className="min-h-dvh bg-app flex items-center justify-center">
         <div className="w-10 h-10 border-4 border-[#003DA5] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-dvh bg-[#F0F4FF] pb-24">
+    <div className="min-h-dvh bg-app pb-24">
       {/* Header */}
       <div className="bg-fifa-pattern px-5 pt-14 pb-8 relative overflow-hidden">
         <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/5" />
@@ -102,10 +161,12 @@ export default function TablaPage() {
 
       <div className="px-5 -mt-3 relative z-10">
         {leaderboard.length === 0 ? (
-          <div className="bg-white rounded-3xl p-8 text-center shadow-sm">
+          <div className="bg-surface rounded-3xl p-8 text-center shadow-sm">
             <span className="text-5xl block mb-3">📊</span>
-            <p className="font-bold text-gray-700 mb-2">Sin datos todavía</p>
-            <p className="text-gray-400 text-sm">
+            <p className="font-bold text-[color:var(--color-text-2)] mb-2">
+              Sin datos todavía
+            </p>
+            <p className="text-[color:var(--color-muted)] text-sm">
               Los puntos van a aparecer cuando comiencen los partidos.
             </p>
           </div>
@@ -117,36 +178,29 @@ export default function TablaPage() {
                 {/* 2nd */}
                 <div className="flex flex-col items-center">
                   <div
-                    className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-300 mb-1"
+                    className="w-12 h-12 rounded-full overflow-hidden border-2 border-soft mb-1"
                     style={{
                       background: "linear-gradient(135deg, #888, #aaa)",
                     }}
                   >
-                    {leaderboard[1]?.avatar_url ? (
-                      <img
-                        src={leaderboard[1].avatar_url}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="w-full h-full flex items-center justify-center text-white font-bold">
-                        {(leaderboard[1]?.full_name ?? "U")[0]}
-                      </span>
-                    )}
+                    <Avatar
+                      url={leaderboard[1]?.avatar_url}
+                      name={leaderboard[1]?.full_name}
+                    />
                   </div>
-                  <p className="text-xs font-semibold text-gray-600 max-w-[70px] text-center truncate">
+                  <p className="text-xs font-semibold text-[color:var(--color-muted)] max-w-[70px] text-center truncate">
                     {leaderboard[1]?.full_name?.split(" ")[0]}
                   </p>
-                  <div className="w-16 bg-gray-200 rounded-t-xl flex items-center justify-center py-2 mt-1">
+                  <div className="w-16 bg-surface-3 rounded-t-xl flex items-center justify-center py-2 mt-1">
                     <span
-                      className="font-display text-gray-600 text-xl"
+                      className="font-display text-[color:var(--color-text-2)] text-xl"
                       style={{ fontFamily: "Bebas Neue, sans-serif" }}
                     >
                       {leaderboard[1]?.total_points}
                     </span>
                   </div>
-                  <div className="w-16 h-6 bg-gray-300 rounded-b flex items-center justify-center">
-                    <span className="text-xs font-bold text-gray-600">
+                  <div className="w-16 h-6 bg-surface-3 rounded-b flex items-center justify-center">
+                    <span className="text-xs font-bold text-[color:var(--color-muted)]">
                       🥈 2°
                     </span>
                   </div>
@@ -163,19 +217,13 @@ export default function TablaPage() {
                       borderColor: "#C8A84B",
                     }}
                   >
-                    {leaderboard[0]?.avatar_url ? (
-                      <img
-                        src={leaderboard[0].avatar_url}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="w-full h-full flex items-center justify-center text-white font-bold text-lg">
-                        {(leaderboard[0]?.full_name ?? "U")[0]}
-                      </span>
-                    )}
+                    <Avatar
+                      url={leaderboard[0]?.avatar_url}
+                      name={leaderboard[0]?.full_name}
+                      size="lg"
+                    />
                   </div>
-                  <p className="text-sm font-bold text-gray-800 max-w-[80px] text-center truncate">
+                  <p className="text-sm font-bold text-[color:var(--color-text)] max-w-[80px] text-center truncate">
                     {leaderboard[0]?.full_name?.split(" ")[0]}
                   </p>
                   <div className="w-20 bg-[#003DA5] rounded-t-xl flex items-center justify-center py-3 mt-1">
@@ -202,19 +250,12 @@ export default function TablaPage() {
                       background: "linear-gradient(135deg, #b45309, #d97706)",
                     }}
                   >
-                    {leaderboard[2]?.avatar_url ? (
-                      <img
-                        src={leaderboard[2].avatar_url}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="w-full h-full flex items-center justify-center text-white font-bold">
-                        {(leaderboard[2]?.full_name ?? "U")[0]}
-                      </span>
-                    )}
+                    <Avatar
+                      url={leaderboard[2]?.avatar_url}
+                      name={leaderboard[2]?.full_name}
+                    />
                   </div>
-                  <p className="text-xs font-semibold text-gray-600 max-w-[70px] text-center truncate">
+                  <p className="text-xs font-semibold text-[color:var(--color-muted)] max-w-[70px] text-center truncate">
                     {leaderboard[2]?.full_name?.split(" ")[0]}
                   </p>
                   <div className="w-16 bg-amber-200 rounded-t-xl flex items-center justify-center py-1.5 mt-1">
@@ -233,24 +274,24 @@ export default function TablaPage() {
             )}
 
             {/* Full table */}
-            <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
-              <div className="px-5 py-3 bg-[#F8FAFF] border-b border-gray-100 grid grid-cols-12 gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+            <div className="bg-surface rounded-3xl shadow-sm overflow-hidden">
+              <div className="px-5 py-3 bg-surface-2 border-b border-soft grid grid-cols-12 gap-2 text-xs font-semibold text-[color:var(--color-muted)] uppercase tracking-wide">
                 <span className="col-span-1">#</span>
                 <span className="col-span-5">Jugador</span>
                 <span className="col-span-2 text-center">🎯</span>
                 <span className="col-span-2 text-center">🟡</span>
                 <span className="col-span-2 text-right">Pts</span>
               </div>
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-soft">
                 {leaderboard.map((entry, index) => {
                   const isMe = entry.user_id === userId;
                   return (
                     <div
                       key={entry.user_id}
-                      className={`grid grid-cols-12 gap-2 px-5 py-3.5 items-center ${isMe ? "bg-blue-50" : ""}`}
+                      className={`grid grid-cols-12 gap-2 px-5 py-3.5 items-center ${isMe ? "bg-surface-2" : ""}`}
                     >
                       <span
-                        className={`col-span-1 text-sm font-bold ${index < 3 ? "text-[#C8A84B]" : "text-gray-400"}`}
+                        className={`col-span-1 text-sm font-bold ${index < 3 ? "text-[#C8A84B]" : "text-[color:var(--color-muted)]"}`}
                       >
                         {index + 1}
                       </span>
@@ -262,32 +303,25 @@ export default function TablaPage() {
                               "linear-gradient(135deg, #003DA5, #1A5FBF)",
                           }}
                         >
-                          {entry.avatar_url ? (
-                            <img
-                              src={entry.avatar_url}
-                              alt=""
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <span className="w-full h-full flex items-center justify-center text-white text-xs font-bold">
-                              {(entry.full_name ?? "U")[0]}
-                            </span>
-                          )}
+                          <Avatar
+                            url={entry.avatar_url}
+                            name={entry.full_name}
+                          />
                         </div>
                         <span
-                          className={`text-sm font-semibold truncate ${isMe ? "text-[#003DA5]" : "text-gray-700"}`}
+                          className={`text-sm font-semibold truncate ${isMe ? "text-[color:var(--color-primary)]" : "text-[color:var(--color-text-2)]"}`}
                         >
                           {entry.full_name?.split(" ")[0] ?? "Jugador"}
                         </span>
                       </div>
-                      <span className="col-span-2 text-center text-sm text-gray-500">
+                      <span className="col-span-2 text-center text-sm text-[color:var(--color-muted)]">
                         {entry.exact_results}
                       </span>
-                      <span className="col-span-2 text-center text-sm text-gray-500">
+                      <span className="col-span-2 text-center text-sm text-[color:var(--color-muted)]">
                         {entry.partial_results}
                       </span>
                       <span
-                        className="col-span-2 text-right font-display text-xl text-[#003DA5]"
+                        className="col-span-2 text-right font-display text-xl text-[color:var(--color-primary)]"
                         style={{ fontFamily: "Bebas Neue, sans-serif" }}
                       >
                         {entry.total_points}
@@ -299,7 +333,7 @@ export default function TablaPage() {
             </div>
 
             {/* Legend */}
-            <div className="flex items-center justify-center gap-4 mt-4 text-xs text-gray-400">
+            <div className="flex items-center justify-center gap-4 mt-4 text-xs text-[color:var(--color-muted)]">
               <span>🎯 = Resultados exactos</span>
               <span>🟡 = Solo ganador</span>
             </div>

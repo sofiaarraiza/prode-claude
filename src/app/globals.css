@@ -19,7 +19,7 @@
   /* Backgrounds */
   --color-bg: #f0f4ff;
   --color-surface: #ffffff;
-  --color-surface-2: #eef1f8;
+  --color-surface-2: #f8faff;
   --color-surface-3: #e4e9f4;
 
   /* Borders */
@@ -87,7 +87,9 @@ body {
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
   min-height: 100dvh;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 /* ══════════════════════════════════════════
@@ -96,8 +98,16 @@ body {
 .bg-fifa-pattern {
   background:
     linear-gradient(145deg, #002580 0%, #0038a8 55%, #1a55c4 100%),
-    radial-gradient(circle at 15% 60%, rgba(255,255,255,0.07) 0%, transparent 50%),
-    radial-gradient(circle at 85% 15%, rgba(255,255,255,0.05) 0%, transparent 40%);
+    radial-gradient(
+      circle at 15% 60%,
+      rgba(255, 255, 255, 0.07) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 85% 15%,
+      rgba(255, 255, 255, 0.05) 0%,
+      transparent 40%
+    );
   background-blend-mode: normal, screen, screen;
 }
 
@@ -105,8 +115,16 @@ body {
 .dark .bg-fifa-pattern {
   background:
     linear-gradient(145deg, #0a1628 0%, #0d2147 55%, #1a3070 100%),
-    radial-gradient(circle at 15% 60%, rgba(255,255,255,0.04) 0%, transparent 50%),
-    radial-gradient(circle at 85% 15%, rgba(255,255,255,0.03) 0%, transparent 40%);
+    radial-gradient(
+      circle at 15% 60%,
+      rgba(255, 255, 255, 0.04) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 85% 15%,
+      rgba(255, 255, 255, 0.03) 0%,
+      transparent 40%
+    );
   background-blend-mode: normal, screen, screen;
 }
 
@@ -114,15 +132,33 @@ body {
    SURFACE UTILITIES (para usar en lugar de bg-white, bg-[#F0F4FF], etc.)
    Usalas así: className="bg-surface"
 ══════════════════════════════════════════ */
-.bg-surface    { background-color: var(--color-surface); }
-.bg-surface-2  { background-color: var(--color-surface-2); }
-.bg-surface-3  { background-color: var(--color-surface-3); }
-.bg-app        { background-color: var(--color-bg); }
-.text-primary  { color: var(--color-text); }
-.text-secondary { color: var(--color-text-2); }
-.text-muted    { color: var(--color-muted); }
-.border-soft   { border-color: var(--color-border); }
-.divide-soft > * + * { border-color: var(--color-border-soft); }
+.bg-surface {
+  background-color: var(--color-surface);
+}
+.bg-surface-2 {
+  background-color: var(--color-surface-2);
+}
+.bg-surface-3 {
+  background-color: var(--color-surface-3);
+}
+.bg-app {
+  background-color: var(--color-bg);
+}
+.text-primary {
+  color: var(--color-text);
+}
+.text-secondary {
+  color: var(--color-text-2);
+}
+.text-muted {
+  color: var(--color-muted);
+}
+.border-soft {
+  border-color: var(--color-border);
+}
+.divide-soft > * + * {
+  border-color: var(--color-border-soft);
+}
 
 /* ══════════════════════════════════════════
    SCORE INPUT
@@ -141,7 +177,10 @@ body {
   -moz-appearance: textfield;
 }
 .score-input::-webkit-outer-spin-button,
-.score-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.score-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
 .score-input:focus {
   outline: none;
   border-color: var(--color-primary);
@@ -160,37 +199,73 @@ body {
    SKELETON
 ══════════════════════════════════════════ */
 .skeleton {
-  background: linear-gradient(90deg, var(--color-surface-2) 25%, var(--color-surface-3) 50%, var(--color-surface-2) 75%);
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-2) 25%,
+    var(--color-surface-3) 50%,
+    var(--color-surface-2) 75%
+  );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
 @keyframes shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* ══════════════════════════════════════════
    SCROLLBAR
 ══════════════════════════════════════════ */
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0, 56, 168, 0.2); border-radius: 2px; }
-.dark ::-webkit-scrollbar-thumb { background: rgba(77, 142, 240, 0.2); }
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 56, 168, 0.2);
+  border-radius: 2px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(77, 142, 240, 0.2);
+}
 
 /* ══════════════════════════════════════════
    BOTTOM NAV SAFE AREA
 ══════════════════════════════════════════ */
-.bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
-.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
 
 /* ══════════════════════════════════════════
    POINTS BADGES
 ══════════════════════════════════════════ */
-.points-exact   { background: var(--color-primary); color: white; }
-.points-partial { background: var(--color-amber); color: white; }
-.points-zero    { background: var(--color-surface-2); color: var(--color-muted); }
-.points-pending { background: var(--color-surface-2); color: var(--color-muted); border: 2px dashed var(--color-border); }
+.points-exact {
+  background: var(--color-primary);
+  color: white;
+}
+.points-partial {
+  background: var(--color-amber);
+  color: white;
+}
+.points-zero {
+  background: var(--color-surface-2);
+  color: var(--color-muted);
+}
+.points-pending {
+  background: var(--color-surface-2);
+  color: var(--color-muted);
+  border: 2px dashed var(--color-border);
+}
 
 /* ══════════════════════════════════════════
    SCORE INPUT EMPTY STATE

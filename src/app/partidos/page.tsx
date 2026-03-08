@@ -139,40 +139,42 @@ function BracketSlot({
   const finished = match?.status === "finished";
 
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm min-w-[160px]">
+    <div className="bg-surface rounded-2xl overflow-hidden border border-soft shadow-sm min-w-[160px]">
       <div
-        className={`flex items-center gap-2 px-3 py-2.5 border-b border-gray-100 ${finished && match.home_score !== null && match.away_score !== null && match.home_score! > match.away_score! ? "bg-[#EEF4FF]" : ""}`}
+        className={`flex items-center gap-2 px-3 py-2.5 border-b border-soft ${finished && match.home_score !== null && match.away_score !== null && match.home_score! > match.away_score! ? "bg-surface-2" : ""}`}
       >
         <span className="text-lg flex-shrink-0">
           {hasMatch ? match.home_flag : "🏳️"}
         </span>
-        <span className="text-xs font-semibold text-gray-700 flex-1 truncate">
+        <span className="text-xs font-semibold text-[color:var(--color-text-2)] flex-1 truncate">
           {hasMatch ? match.home_team : home}
         </span>
         {finished && (
-          <span className="text-sm font-bold text-[#003DA5] tabular-nums">
+          <span className="text-sm font-bold text-[color:var(--color-primary)] tabular-nums">
             {match!.home_score}
           </span>
         )}
       </div>
       <div
-        className={`flex items-center gap-2 px-3 py-2.5 ${finished && match.home_score !== null && match.away_score !== null && match.away_score! > match.home_score! ? "bg-[#EEF4FF]" : ""}`}
+        className={`flex items-center gap-2 px-3 py-2.5 ${finished && match.home_score !== null && match.away_score !== null && match.away_score! > match.home_score! ? "bg-surface-2" : ""}`}
       >
         <span className="text-lg flex-shrink-0">
           {hasMatch ? match.away_flag : "🏳️"}
         </span>
-        <span className="text-xs font-semibold text-gray-700 flex-1 truncate">
+        <span className="text-xs font-semibold text-[color:var(--color-text-2)] flex-1 truncate">
           {hasMatch ? match.away_team : away}
         </span>
         {finished && (
-          <span className="text-sm font-bold text-[#003DA5] tabular-nums">
+          <span className="text-sm font-bold text-[color:var(--color-primary)] tabular-nums">
             {match!.away_score}
           </span>
         )}
       </div>
       {!hasMatch && (
-        <div className="px-3 py-1.5 bg-gray-50">
-          <p className="text-xs text-gray-400 text-center">Por definir</p>
+        <div className="px-3 py-1.5 bg-surface-2">
+          <p className="text-xs text-[color:var(--color-muted)] text-center">
+            Por definir
+          </p>
         </div>
       )}
     </div>
@@ -190,7 +192,7 @@ function BracketPhase({
 }) {
   return (
     <div className="flex-shrink-0">
-      <p className="text-xs font-bold text-gray-400 tracking-widest text-center mb-3 px-2">
+      <p className="text-xs font-bold text-[color:var(--color-muted)] tracking-widest text-center mb-3 px-2">
         {title.toUpperCase()}
       </p>
       <div className="flex flex-col gap-4 px-2">
@@ -299,7 +301,7 @@ export default function PartidosPage() {
 
   if (loading) {
     return (
-      <div className="min-h-dvh bg-[#F0F4FF] flex items-center justify-center">
+      <div className="min-h-dvh bg-app flex items-center justify-center">
         <div className="w-10 h-10 border-4 border-[#003DA5] border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -315,7 +317,7 @@ export default function PartidosPage() {
   ];
 
   return (
-    <div className="min-h-dvh bg-[#F0F4FF] pb-24">
+    <div className="min-h-dvh bg-app pb-24">
       {/* Header */}
       <div className="bg-fifa-pattern px-5 pt-14 pb-4">
         <p className="text-white/60 text-xs tracking-widest mb-1">
@@ -338,7 +340,7 @@ export default function PartidosPage() {
               <button
                 key={p}
                 onClick={() => setPhase(p)}
-                className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all ${phase === p ? "bg-white text-[#003DA5]" : "bg-white/20 text-white"}`}
+                className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all ${phase === p ? "bg-white text-[color:var(--color-primary)]" : "bg-white/20 text-white"}`}
               >
                 {PHASE_LABELS[p]}
               </button>
@@ -350,13 +352,13 @@ export default function PartidosPage() {
       {/* ===================== FASE DE GRUPOS ===================== */}
       {phase === "grupos" && (
         <>
-          <div className="bg-white border-b border-gray-100 sticky top-0 z-20">
+          <div className="bg-surface border-b border-soft sticky top-0 z-20">
             <div className="flex px-4 pt-2 gap-1">
               {(["fixture", "grupos"] as View[]).map((v) => (
                 <button
                   key={v}
                   onClick={() => setView(v)}
-                  className={`flex-1 py-2 rounded-t-xl text-xs font-bold border-b-2 transition-all ${view === v ? "border-[#003DA5] text-[#003DA5]" : "border-transparent text-gray-400"}`}
+                  className={`flex-1 py-2 rounded-t-xl text-xs font-bold border-b-2 transition-all ${view === v ? "border-[color:var(--color-primary)] text-[color:var(--color-primary)]" : "border-transparent text-[color:var(--color-muted)]"}`}
                 >
                   {v === "fixture" ? "📋 Fixture" : "📊 Posiciones"}
                 </button>
@@ -370,7 +372,7 @@ export default function PartidosPage() {
                 <button
                   key={g}
                   onClick={() => setActiveGroup(g)}
-                  className={`flex-shrink-0 w-9 h-9 rounded-xl font-bold text-sm transition-all active:scale-90 ${activeGroup === g ? "bg-[#003DA5] text-white" : "bg-gray-100 text-gray-500"}`}
+                  className={`flex-shrink-0 w-9 h-9 rounded-xl font-bold text-sm transition-all active:scale-90 ${activeGroup === g ? "bg-[#003DA5] text-white" : "bg-surface-2 text-[color:var(--color-muted)]"}`}
                 >
                   {g}
                 </button>
@@ -385,10 +387,10 @@ export default function PartidosPage() {
                 return (
                   <div
                     key={match.id}
-                    className="bg-white rounded-3xl overflow-hidden shadow-sm"
+                    className="bg-surface rounded-3xl overflow-hidden shadow-sm"
                   >
-                    <div className="px-4 py-2.5 flex items-center justify-between bg-[#F8FAFF] border-b border-gray-100">
-                      <span className="text-xs text-gray-400">
+                    <div className="px-4 py-2.5 flex items-center justify-between bg-surface-2 border-b border-soft">
+                      <span className="text-xs text-[color:var(--color-muted)]">
                         📍 {match.city}
                       </span>
                       <div className="flex items-center gap-2">
@@ -398,7 +400,7 @@ export default function PartidosPage() {
                             EN VIVO
                           </span>
                         )}
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-[color:var(--color-muted)]">
                           {format(
                             parseISO(match.match_date),
                             "d MMM · HH'h'mm",
@@ -412,14 +414,14 @@ export default function PartidosPage() {
                         <span className="text-3xl block mb-1">
                           {match.home_flag}
                         </span>
-                        <p className="text-xs font-semibold text-gray-700">
+                        <p className="text-xs font-semibold text-[color:var(--color-text-2)]">
                           {match.home_team}
                         </p>
                       </div>
                       <div className="flex-shrink-0 text-center min-w-[80px]">
                         {status === "finished" ? (
                           <span
-                            className="text-2xl font-bold text-[#003DA5]"
+                            className="text-2xl font-bold text-[color:var(--color-primary)]"
                             style={{ fontFamily: "Bebas Neue, sans-serif" }}
                           >
                             {match.home_score} - {match.away_score}
@@ -433,7 +435,7 @@ export default function PartidosPage() {
                             {match.away_score ?? "?"}
                           </span>
                         ) : (
-                          <span className="text-gray-300 font-bold text-lg">
+                          <span className="text-[color:var(--color-border)] font-bold text-lg">
                             vs
                           </span>
                         )}
@@ -442,7 +444,7 @@ export default function PartidosPage() {
                         <span className="text-3xl block mb-1">
                           {match.away_flag}
                         </span>
-                        <p className="text-xs font-semibold text-gray-700">
+                        <p className="text-xs font-semibold text-[color:var(--color-text-2)]">
                           {match.away_team}
                         </p>
                       </div>
@@ -452,20 +454,20 @@ export default function PartidosPage() {
               })}
 
             {view === "grupos" && (
-              <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+              <div className="bg-surface rounded-3xl shadow-sm overflow-hidden">
                 <div className="px-4 pt-4 pb-2">
-                  <h3 className="font-bold text-gray-800 text-sm">
+                  <h3 className="font-bold text-[color:var(--color-text)] text-sm">
                     Grupo {activeGroup}
                   </h3>
                 </div>
-                <div className="flex items-center px-4 py-2 bg-gray-50 border-y border-gray-100">
-                  <div className="flex-1 text-xs text-gray-400 font-semibold">
+                <div className="flex items-center px-4 py-2 bg-surface-2 border-y border-soft">
+                  <div className="flex-1 text-xs text-[color:var(--color-muted)] font-semibold">
                     Equipo
                   </div>
                   {["PJ", "G", "E", "P", "GF", "GC", "Pts"].map((h) => (
                     <div
                       key={h}
-                      className={`w-8 text-center text-xs font-bold ${h === "Pts" ? "text-[#003DA5]" : "text-gray-400"}`}
+                      className={`w-8 text-center text-xs font-bold ${h === "Pts" ? "text-[color:var(--color-primary)]" : "text-[color:var(--color-muted)]"}`}
                     >
                       {h}
                     </div>
@@ -474,16 +476,16 @@ export default function PartidosPage() {
                 {standings.map((row, i) => (
                   <div
                     key={row.team}
-                    className={`flex items-center px-4 py-3 border-b border-gray-50 ${i < 2 ? "bg-[#F0F8FF]" : ""}`}
+                    className={`flex items-center px-4 py-3 border-b border-soft ${i < 2 ? "bg-surface-2" : ""}`}
                   >
                     <div className="flex-1 flex items-center gap-2 min-w-0">
                       <span
-                        className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${i < 2 ? "bg-[#003DA5] text-white" : "bg-gray-100 text-gray-400"}`}
+                        className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${i < 2 ? "bg-[#003DA5] text-white" : "bg-surface-2 text-[color:var(--color-muted)]"}`}
                       >
                         {i + 1}
                       </span>
                       <span className="text-lg flex-shrink-0">{row.flag}</span>
-                      <span className="text-sm font-semibold text-gray-800 truncate">
+                      <span className="text-sm font-semibold text-[color:var(--color-text)] truncate">
                         {row.team}
                       </span>
                     </div>
@@ -497,19 +499,19 @@ export default function PartidosPage() {
                     ].map((v, j) => (
                       <div
                         key={j}
-                        className="w-8 text-center text-xs text-gray-500"
+                        className="w-8 text-center text-xs text-[color:var(--color-muted)]"
                       >
                         {v}
                       </div>
                     ))}
-                    <div className="w-8 text-center text-sm font-bold text-[#003DA5]">
+                    <div className="w-8 text-center text-sm font-bold text-[color:var(--color-primary)]">
                       {row.points}
                     </div>
                   </div>
                 ))}
                 <div className="px-4 py-2 flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-[#003DA5]" />
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-[color:var(--color-muted)]">
                     Clasifican al siguiente ronda
                   </span>
                 </div>
@@ -526,7 +528,7 @@ export default function PartidosPage() {
           {phase === "32avos" || phase === "16avos" ? (
             <div>
               <div className="px-4 mb-3">
-                <p className="text-xs text-gray-400 font-semibold">
+                <p className="text-xs text-[color:var(--color-muted)] font-semibold">
                   {phase === "32avos"
                     ? "32 equipos · 16 partidos"
                     : "16 equipos · 8 partidos"}
@@ -561,7 +563,7 @@ export default function PartidosPage() {
                   matches={getMatchesForPhase("octavos")}
                 />
                 <div className="flex items-center">
-                  <div className="w-6 border-t-2 border-dashed border-gray-200" />
+                  <div className="w-6 border-t-2 border-dashed border-soft" />
                 </div>
                 <BracketPhase
                   title="Cuartos"
@@ -583,7 +585,7 @@ export default function PartidosPage() {
                   matches={getMatchesForPhase("semis")}
                 />
                 <div className="flex items-center">
-                  <div className="w-6 border-t-2 border-dashed border-gray-200" />
+                  <div className="w-6 border-t-2 border-dashed border-soft" />
                 </div>
                 <BracketPhase
                   title="Final 🏆"
@@ -596,12 +598,12 @@ export default function PartidosPage() {
 
           {/* Mensaje si no hay partidos cargados aún */}
           {getMatchesForPhase(phase).length === 0 && (
-            <div className="mx-4 mt-4 bg-white rounded-3xl p-8 text-center shadow-sm">
+            <div className="mx-4 mt-4 bg-surface rounded-3xl p-8 text-center shadow-sm">
               <span className="text-4xl block mb-3">🔜</span>
-              <p className="text-gray-600 font-semibold">
+              <p className="text-[color:var(--color-text-2)] font-semibold">
                 {PHASE_LABELS[phase]}
               </p>
-              <p className="text-gray-400 text-sm mt-1">
+              <p className="text-[color:var(--color-muted)] text-sm mt-1">
                 Los partidos se definirán al finalizar la fase anterior
               </p>
             </div>

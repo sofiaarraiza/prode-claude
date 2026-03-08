@@ -193,7 +193,7 @@ export default function PerfilPage() {
           </div>
           <button onClick={() => setShowAvatarEditor(true)}
             className="absolute -bottom-1 -right-1 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md border-2 border-[#F0F4FF] active:scale-90 transition-transform">
-            <svg className="w-4 h-4 text-[#003DA5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-[color:var(--color-primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
           </button>
@@ -206,7 +206,7 @@ export default function PerfilPage() {
       {showAvatarEditor && (
         <div className="fixed inset-0 z-50 flex items-end" onClick={() => setShowAvatarEditor(false)}>
           <div className="absolute inset-0 bg-black/40" />
-          <div className="relative w-full bg-white rounded-t-3xl p-5 pb-10 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="relative w-full bg-surface rounded-t-3xl p-5 pb-10 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
             <h2 className="font-bold text-gray-800 text-lg mb-4 text-center">Personalizar avatar</h2>
             <div className="flex justify-center mb-5">
@@ -338,7 +338,7 @@ export default function PerfilPage() {
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className="font-bold text-[#003DA5] text-xl leading-tight" style={{ fontFamily: 'Bebas Neue, sans-serif' }}>{gr.points}</p>
+                      <p className="font-bold text-[color:var(--color-primary)] text-xl leading-tight" style={{ fontFamily: 'Bebas Neue, sans-serif' }}>{gr.points}</p>
                       <p className="text-xs text-[color:var(--color-muted)]">pts</p>
                     </div>
                   </button>
@@ -372,7 +372,7 @@ export default function PerfilPage() {
           className="w-full text-left bg-surface rounded-3xl shadow-sm overflow-hidden active:scale-95 transition-transform">
           <div className="px-5 pt-4 pb-3 border-b border-soft flex items-center justify-between">
             <h2 className="font-bold text-[color:var(--color-text)] text-base">📋 Reglas del prode</h2>
-            <span className="text-[#003DA5] text-xs font-semibold flex items-center gap-0.5">
+            <span className="text-[color:var(--color-primary)] text-xs font-semibold flex items-center gap-0.5">
               Ver todo
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

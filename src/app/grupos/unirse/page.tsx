@@ -22,12 +22,14 @@ function UnirseGrupoContent() {
     // Intentar auto-unirse si ya hay sesión activa
     const tryAutoJoin = async () => {
       setAutoJoining(true);
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (!session) {
         // No hay sesión — guardar código en cookie y localStorage, redirigir a login
         document.cookie = `pending_invite_code=${upperCode}; path=/; max-age=600; SameSite=Lax`;
-        localStorage.setItem('pending_invite_code', upperCode);
+        localStorage.setItem("pending_invite_code", upperCode);
         router.replace("/auth/login");
         return;
       }
@@ -84,11 +86,13 @@ function UnirseGrupoContent() {
     setLoading(true);
     setError("");
 
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session) {
       // Guardar código en cookie y localStorage, redirigir a login
       document.cookie = `pending_invite_code=${code.toUpperCase()}; path=/; max-age=600; SameSite=Lax`;
-      localStorage.setItem('pending_invite_code', code.toUpperCase());
+      localStorage.setItem("pending_invite_code", code.toUpperCase());
       router.replace("/auth/login");
       return;
     }
@@ -98,31 +102,48 @@ function UnirseGrupoContent() {
 
   if (autoJoining) {
     return (
-      <main className="min-h-dvh bg-[#F4F6FB] flex items-center justify-center">
+      <main className="min-h-dvh bg-app flex items-center justify-center">
         <div className="text-center px-5">
           <div className="w-16 h-16 border-4 border-[#003DA5] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 font-semibold text-lg">Uniéndote al grupo...</p>
-          <p className="text-gray-400 text-sm mt-1">Un momento</p>
+          <p className="text-[color:var(--color-text-2)] font-semibold text-lg">
+            Uniéndote al grupo...
+          </p>
+          <p className="text-[color:var(--color-muted)] text-sm mt-1">
+            Un momento
+          </p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-dvh bg-[#F4F6FB]">
+    <main className="min-h-dvh bg-app">
       <div className="bg-fifa-pattern px-5 pt-14 pb-12">
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.back()}
             className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
             </svg>
           </button>
           <div>
             <p className="text-white/60 text-xs tracking-widest">GRUPOS</p>
-            <h1 className="text-white font-display text-2xl" style={{ fontFamily: "Bebas Neue, sans-serif" }}>
+            <h1
+              className="text-white font-display text-2xl"
+              style={{ fontFamily: "Bebas Neue, sans-serif" }}
+            >
               UNIRME A UN GRUPO
             </h1>
           </div>
@@ -130,10 +151,10 @@ function UnirseGrupoContent() {
       </div>
 
       <div className="px-5 -mt-4 relative z-10">
-        <div className="bg-white rounded-3xl shadow-sm p-6">
+        <div className="bg-surface rounded-3xl shadow-sm p-6">
           <div className="text-center mb-6">
             <span className="text-5xl block mb-3">🔑</span>
-            <p className="text-gray-500 text-sm">
+            <p className="text-[color:var(--color-muted)] text-sm">
               Ingresá el código que te compartió el organizador del grupo
             </p>
           </div>
@@ -147,8 +168,11 @@ function UnirseGrupoContent() {
                 placeholder="Ej: ABC123"
                 required
                 maxLength={6}
-                className="w-full bg-[#F4F6FB] border-2 border-transparent rounded-2xl px-4 py-4 text-gray-800 text-2xl text-center font-bold tracking-[0.3em] focus:outline-none focus:border-[#003DA5] transition-colors"
-                style={{ fontFamily: "Bebas Neue, sans-serif", letterSpacing: "0.3em" }}
+                className="w-full bg-surface-2 border-2 border-transparent rounded-2xl px-4 py-4 text-[color:var(--color-text)] text-2xl text-center font-bold tracking-[0.3em] focus:outline-none focus:border-[color:var(--color-primary)] transition-colors"
+                style={{
+                  fontFamily: "Bebas Neue, sans-serif",
+                  letterSpacing: "0.3em",
+                }}
               />
             </div>
 
@@ -162,7 +186,9 @@ function UnirseGrupoContent() {
               type="submit"
               disabled={loading || code.trim().length < 4}
               className="w-full py-4 rounded-2xl font-semibold text-base text-white transition-all active:scale-95 disabled:opacity-50"
-              style={{ background: "linear-gradient(135deg, #003DA5, #1A5FBF)" }}
+              style={{
+                background: "linear-gradient(135deg, #003DA5, #1A5FBF)",
+              }}
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">

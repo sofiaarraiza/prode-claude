@@ -33,7 +33,7 @@ export default function GruposPage() {
   }, [router]);
 
   return (
-    <div className="min-h-dvh bg-[#F0F4FF] pb-24">
+    <div className="min-h-dvh bg-app pb-24">
       {/* Header */}
       <div className="bg-fifa-pattern px-5 pt-14 pb-12 relative">
         <p className="text-white/60 text-xs tracking-widest mb-1">
@@ -71,7 +71,7 @@ export default function GruposPage() {
           </button>
           <button
             onClick={() => router.push("/grupos/unirse")}
-            className="flex-1 bg-white border-2 border-[#003DA5] text-[#003DA5] py-3.5 rounded-2xl font-semibold text-sm active:scale-95 transition-transform flex items-center justify-center gap-2"
+            className="flex-1 bg-surface border-2 border-[color:var(--color-primary)] text-[color:var(--color-primary)] py-3.5 rounded-2xl font-semibold text-sm active:scale-95 transition-transform flex items-center justify-center gap-2"
           >
             <svg
               className="w-4 h-4"
@@ -98,10 +98,12 @@ export default function GruposPage() {
             ))}
           </div>
         ) : groups.length === 0 ? (
-          <div className="bg-white rounded-3xl p-8 text-center">
+          <div className="bg-surface rounded-3xl p-8 text-center">
             <span className="text-5xl block mb-3">👥</span>
-            <p className="font-bold text-gray-700 mb-2">Sin grupos todavía</p>
-            <p className="text-gray-400 text-sm">
+            <p className="font-bold text-[color:var(--color-text-2)] mb-2">
+              Sin grupos todavía
+            </p>
+            <p className="text-[color:var(--color-muted)] text-sm">
               Creá un grupo o usá un código para unirte al de tus amigos.
             </p>
           </div>
@@ -111,7 +113,7 @@ export default function GruposPage() {
               <button
                 key={group.id}
                 onClick={() => router.push(`/grupos/${group.id}`)}
-                className="w-full bg-white rounded-3xl p-5 text-left shadow-sm active:scale-98 transition-transform"
+                className="w-full bg-surface rounded-3xl p-5 text-left shadow-sm active:scale-98 transition-transform"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -124,21 +126,23 @@ export default function GruposPage() {
                       🏆
                     </div>
                     <div>
-                      <p className="font-bold text-gray-800">{group.name}</p>
+                      <p className="font-bold text-[color:var(--color-text)]">
+                        {group.name}
+                      </p>
                       {group.description && (
-                        <p className="text-gray-400 text-xs mt-0.5 line-clamp-1">
+                        <p className="text-[color:var(--color-muted)] text-xs mt-0.5 line-clamp-1">
                           {group.description}
                         </p>
                       )}
                       <div className="flex items-center gap-1.5 mt-1">
-                        <span className="bg-[#F0F4FF] text-[#003DA5] text-xs font-semibold px-2 py-0.5 rounded-full">
+                        <span className="bg-surface-2 text-[color:var(--color-primary)] text-xs font-semibold px-2 py-0.5 rounded-full">
                           {group.invite_code}
                         </span>
                       </div>
                     </div>
                   </div>
                   <svg
-                    className="w-5 h-5 text-gray-300"
+                    className="w-5 h-5 text-[color:var(--color-muted-2)]"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"

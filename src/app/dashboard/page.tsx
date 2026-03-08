@@ -149,7 +149,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-dvh bg-[#F0F4FF] flex items-center justify-center">
+      <div className="min-h-dvh bg-app flex items-center justify-center">
         <div className="w-10 h-10 border-4 border-[#003DA5] border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -253,7 +253,7 @@ export default function DashboardPage() {
         {!countdown.started && (
           <div className="bg-surface rounded-3xl shadow-sm px-5 pt-5 pb-4">
             <div className="flex items-center justify-between mb-4">
-              <span className="inline-flex items-center gap-1.5 bg-[#F0F4FF] text-[#003DA5] text-xs font-bold px-3 py-1 rounded-full">
+              <span className="inline-flex items-center gap-1.5 bg-[#F0F4FF] text-[color:var(--color-primary)] text-xs font-bold px-3 py-1 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#003DA5]" />
                 FALTAN PARA EL MUNDIAL
               </span>
@@ -293,7 +293,7 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-            <button onClick={() => router.push("/partidos")} className="w-full py-3 text-[#003DA5] text-sm font-semibold border-t border-soft">
+            <button onClick={() => router.push("/partidos")} className="w-full py-3 text-[color:var(--color-primary)] text-sm font-semibold border-t border-soft">
               Ver todos los partidos →
             </button>
           </div>
@@ -308,7 +308,7 @@ export default function DashboardPage() {
             <div className="bg-surface rounded-3xl shadow-sm overflow-hidden">
               <div className="px-5 pt-4 pb-2 border-b border-soft flex items-center justify-between">
                 <p className="font-bold text-gray-800 text-sm">{title}</p>
-                <button onClick={() => router.push("/partidos")} className="text-[#003DA5] text-xs font-semibold">Ver todos</button>
+                <button onClick={() => router.push("/partidos")} className="text-[color:var(--color-primary)] text-xs font-semibold">Ver todos</button>
               </div>
               <div className="divide-y divide-soft">
                 {displayMatches.map((match) => {
@@ -321,7 +321,7 @@ export default function DashboardPage() {
                       <span className="text-xs font-semibold text-[color:var(--color-text-2)] flex-1 text-left truncate">{match.home_team}</span>
                       <div className="flex-shrink-0 text-center min-w-[72px]">
                         {finished ? (
-                          <span className="text-sm font-bold text-[#003DA5]" style={{ fontFamily: "Bebas Neue, sans-serif" }}>
+                          <span className="text-sm font-bold text-[color:var(--color-primary)]" style={{ fontFamily: "Bebas Neue, sans-serif" }}>
                             {match.home_score} - {match.away_score}
                           </span>
                         ) : live ? (
@@ -365,7 +365,7 @@ export default function DashboardPage() {
           <div className="bg-surface rounded-3xl shadow-sm overflow-hidden">
             <div className="px-5 pt-4 pb-3 border-b border-soft flex items-center justify-between">
               <h2 className="font-bold text-[color:var(--color-text)] text-base flex items-center gap-2">🏆 Tabla</h2>
-              <button onClick={() => router.push("/tabla")} className="text-[#003DA5] text-xs font-semibold">Ver todos</button>
+              <button onClick={() => router.push("/tabla")} className="text-[color:var(--color-primary)] text-xs font-semibold">Ver todos</button>
             </div>
             <div className="divide-y divide-soft">
               {leaderboard.map((entry, i) => {
@@ -379,10 +379,10 @@ export default function DashboardPage() {
                         : <span className="text-gray-400 font-bold text-xs">{i + 1}</span>}
                     </div>
                     <AvatarBubble avatarUrl={entry.avatar_url} name={entry.full_name ?? "?"} size={34} />
-                    <span className={`flex-1 text-sm font-semibold truncate ${isMe ? "text-[#003DA5]" : "text-[color:var(--color-text)]"}`}>
+                    <span className={`flex-1 text-sm font-semibold truncate ${isMe ? "text-[color:var(--color-primary)]" : "text-[color:var(--color-text)]"}`}>
                       {isMe ? "Vos" : (entry.full_name ?? "Usuario")}
                     </span>
-                    <span className={`text-xl font-bold tabular-nums ${isMe ? "text-[#003DA5]" : "text-[color:var(--color-text-2)]"}`}
+                    <span className={`text-xl font-bold tabular-nums ${isMe ? "text-[color:var(--color-primary)]" : "text-[color:var(--color-text-2)]"}`}
                       style={{ fontFamily: "Bebas Neue, sans-serif" }}>
                       {entry.total_points}
                     </span>
@@ -397,7 +397,7 @@ export default function DashboardPage() {
         <div className="bg-surface rounded-3xl shadow-sm overflow-hidden">
           <div className="px-5 pt-4 pb-3 border-b border-soft flex items-center justify-between">
             <h2 className="font-bold text-[color:var(--color-text)] text-base">👥 Mis Grupos</h2>
-            <button onClick={() => router.push("/grupos")} className="text-[#003DA5] text-xs font-semibold">Ver todos</button>
+            <button onClick={() => router.push("/grupos")} className="text-[color:var(--color-primary)] text-xs font-semibold">Ver todos</button>
           </div>
           {groups.length === 0 ? (
             <div className="text-center py-8 px-5">
@@ -409,7 +409,7 @@ export default function DashboardPage() {
                   Crear grupo
                 </button>
                 <button onClick={() => router.push("/grupos/unirse")}
-                  className="flex-1 border-2 border-[#003DA5] text-[#003DA5] py-3 rounded-xl text-sm font-semibold active:scale-95 transition-transform">
+                  className="flex-1 border-2 border-[#003DA5] text-[color:var(--color-primary)] py-3 rounded-xl text-sm font-semibold active:scale-95 transition-transform">
                   Unirme
                 </button>
               </div>
@@ -438,7 +438,7 @@ export default function DashboardPage() {
                   + Crear grupo
                 </button>
                 <button onClick={() => router.push("/grupos/unirse")}
-                  className="flex-1 border-2 border-[#003DA5] text-[#003DA5] py-2.5 rounded-xl text-sm font-semibold active:scale-95 transition-transform">
+                  className="flex-1 border-2 border-[#003DA5] text-[color:var(--color-primary)] py-2.5 rounded-xl text-sm font-semibold active:scale-95 transition-transform">
                   Unirme
                 </button>
               </div>
@@ -465,7 +465,7 @@ export default function DashboardPage() {
             {/* Points pills */}
             <div className="flex gap-2 mb-4">
               {[
-                { pts: 3, label: "Exacto", bg: "bg-white", text: "text-[#003DA5]" },
+                { pts: 3, label: "Exacto", bg: "bg-white", text: "text-[color:var(--color-primary)]" },
                 { pts: 1, label: "Ganador", bg: "bg-white/20", text: "text-white" },
                 { pts: 0, label: "Error", bg: "bg-white/10", text: "text-white/60" },
               ].map(({ pts, label, bg, text }) => (
