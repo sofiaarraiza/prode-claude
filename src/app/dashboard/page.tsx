@@ -45,6 +45,58 @@ function getMinute(match: Match): number {
   return Math.min(90, Math.floor((Date.now() - start) / 60000));
 }
 
+// Avatar mini display
+function AvatarBubble({
+  avatarUrl,
+  name,
+  size = 44,
+}: {
+  avatarUrl?: string | null;
+  name: string;
+  size?: number;
+}) {
+  if (!avatarUrl) {
+    return (
+      <div
+        className="rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-white/30"
+        style={{
+          width: size,
+          height: size,
+          background: "linear-gradient(135deg, #003DA5, #1A5FBF)",
+        }}
+      >
+        <span
+          className="text-white font-bold"
+          style={{ fontSize: size * 0.38 }}
+        >
+          {name[0]}
+        </span>
+      </div>
+    );
+  }
+  if (avatarUrl.startsWith("avatar:")) {
+    try {
+      const cfg = JSON.parse(avatarUrl.slice(7));
+      return (
+        <div
+          className="rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-white/20"
+          style={{ width: size, height: size, background: cfg.color }}
+        >
+          <span style={{ fontSize: size * 0.45 }}>{cfg.emoji}</span>
+        </div>
+      );
+    } catch {}
+  }
+  return (
+    <div
+      className="rounded-full overflow-hidden flex-shrink-0 border-2 border-white/30"
+      style={{ width: size, height: size }}
+    >
+      <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -71,6 +123,34 @@ export default function DashboardPage() {
       if (!session) {
         router.replace("/auth/login");
         return;
+      }
+
+      // Pending invite code (email/password flow)
+      const pendingCode =
+        typeof window !== "undefined"
+          ? localStorage.getItem("pending_invite_code")
+          : null;
+      if (pendingCode) {
+        localStorage.removeItem("pending_invite_code");
+        const { data: group } = await supabase
+          .from("groups")
+          .select("id")
+          .eq("invite_code", pendingCode.toUpperCase())
+          .single();
+        if (group) {
+          const { data: existing } = await supabase
+            .from("group_members")
+            .select("id")
+            .eq("group_id", group.id)
+            .eq("user_id", session.user.id)
+            .single();
+          if (!existing)
+            await supabase
+              .from("group_members")
+              .insert({ group_id: group.id, user_id: session.user.id });
+          router.replace(`/grupos/${group.id}`);
+          return;
+        }
       }
 
       const [
@@ -111,7 +191,6 @@ export default function DashboardPage() {
         all.filter((m) => parseISO(m.match_date).getTime() > now).slice(0, 3),
       );
 
-      // Today's matches
       const todayStr = new Date().toISOString().slice(0, 10);
       setTodayMatches(
         all.filter((m) => m.match_date.slice(0, 10) === todayStr).slice(0, 5),
@@ -123,7 +202,6 @@ export default function DashboardPage() {
       );
       setTotalPoints(pts);
 
-      // Fetch top 5 leaderboard for first group (preview)
       const firstGroup = g[0];
       if (firstGroup) {
         const { data: lb } = await supabase
@@ -149,42 +227,48 @@ export default function DashboardPage() {
   }
 
   const firstName = profile?.full_name?.split(" ")[0] ?? "Campeón";
-  const pad = (n: number) => String(n).padStart(2, "0");
 
   return (
     <div className="min-h-dvh bg-[#F0F4FF] pb-24">
-      {/* Header */}
+      {/* ── HEADER ──────────────────────────────────────────────── */}
       <div className="bg-fifa-pattern px-5 pt-14 pb-16 relative overflow-hidden">
         <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/5" />
         <div className="absolute -left-4 bottom-2 w-24 h-24 rounded-full bg-white/5" />
+
         <div className="flex items-center justify-between mb-1 relative z-10">
           <div>
             <p className="text-white/60 text-xs tracking-widest">BIENVENIDO</p>
             <h1 className="text-white text-2xl font-bold">{firstName} 👋</h1>
           </div>
-          <button
-            onClick={() => router.push("/perfil")}
-            className="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center overflow-hidden border-2 border-white/30"
-          >
-            {profile?.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt=""
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <span className="text-white font-bold text-lg">
-                {firstName[0]}
+          <div className="flex items-center gap-2">
+            {/* Help */}
+            <button
+              onClick={() => router.push("/ayuda")}
+              className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center border border-white/20 active:scale-90 transition-transform"
+            >
+              <span className="text-white font-bold text-sm leading-none">
+                ?
               </span>
-            )}
-          </button>
+            </button>
+            {/* Avatar */}
+            <button
+              onClick={() => router.push("/perfil")}
+              className="active:scale-90 transition-transform"
+            >
+              <AvatarBubble
+                avatarUrl={profile?.avatar_url}
+                name={firstName}
+                size={44}
+              />
+            </button>
+          </div>
         </div>
 
-        {/* Quick stats */}
-        <div className="flex gap-3 mt-5 relative z-10">
-          <div
-            className="flex-1 bg-white/10 rounded-2xl px-3 py-2.5 text-center cursor-pointer active:scale-95 transition-transform"
+        {/* Stats strip */}
+        <div className="flex gap-2 mt-5 relative z-10">
+          <button
             onClick={() => groups[0] && router.push(`/grupos/${groups[0].id}`)}
+            className="flex-1 bg-white/15 rounded-2xl px-3 py-2.5 text-center active:scale-95 transition-transform border border-white/10"
           >
             <p className="text-white/60 text-xs mb-0.5">Mis puntos</p>
             <p
@@ -193,23 +277,28 @@ export default function DashboardPage() {
             >
               {totalPoints ?? "—"}
             </p>
-          </div>
-          <div className="flex-1 bg-white/10 rounded-2xl px-3 py-2.5 text-center">
+          </button>
+          <div className="flex-1 bg-white/15 rounded-2xl px-3 py-2.5 text-center border border-white/10">
             <p className="text-white/60 text-xs mb-0.5">Inicio</p>
             <p className="text-white font-bold text-sm leading-tight">11 Jun</p>
           </div>
-          <div className="flex-1 bg-white/10 rounded-2xl px-3 py-2.5 text-center">
+          <div className="flex-1 bg-white/15 rounded-2xl px-3 py-2.5 text-center border border-white/10">
             <p className="text-white/60 text-xs mb-0.5">Partidos</p>
-            <p className="text-white font-bold text-xl leading-tight">72</p>
+            <p
+              className="text-white font-bold text-xl leading-tight"
+              style={{ fontFamily: "Bebas Neue, sans-serif" }}
+            >
+              72
+            </p>
           </div>
         </div>
       </div>
 
-      <div className="px-5 -mt-6 relative z-10 space-y-4">
-        {/* ===================== EN VIVO ===================== */}
+      <div className="px-4 -mt-6 relative z-10 space-y-3">
+        {/* ── EN VIVO ─────────────────────────────────────────────── */}
         {liveMatches.length > 0 && (
           <div
-            className="rounded-3xl overflow-hidden shadow-sm"
+            className="rounded-3xl overflow-hidden shadow-md"
             style={{ background: "linear-gradient(135deg, #0a2a6e, #003DA5)" }}
           >
             <div className="px-5 pt-4 pb-2 flex items-center gap-2">
@@ -266,11 +355,6 @@ export default function DashboardPage() {
                         </span>
                       </div>
                     </div>
-                    {!hasScore && (
-                      <p className="text-white/30 text-xs text-center mt-2">
-                        Score pendiente · el admin lo cargará al terminar
-                      </p>
-                    )}
                   </div>
                 );
               })}
@@ -278,31 +362,36 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ===================== COUNTDOWN o PRÓXIMOS ===================== */}
-        {!countdown.started ? (
-          <div
-            className="rounded-3xl overflow-hidden shadow-sm p-5"
-            style={{ background: "linear-gradient(135deg, #0a1628, #0d2147)" }}
-          >
+        {/* ── COUNTDOWN ───────────────────────────────────────────── */}
+        {!countdown.started && (
+          <div className="bg-white rounded-3xl shadow-sm px-5 pt-5 pb-4">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-white/50 text-[10px] font-bold tracking-widest uppercase">
-                ⏳ Faltan para el Mundial
-              </p>
-              <span className="text-white/30 text-xs">11 Jun 2026</span>
+              <span className="inline-flex items-center gap-1.5 bg-[#F0F4FF] text-[#003DA5] text-xs font-bold px-3 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#003DA5]" />
+                FALTAN PARA EL MUNDIAL
+              </span>
+              <span className="text-gray-400 text-xs">11 Jun 2026</span>
             </div>
-            <div className="flex justify-center">
+            <div className="flex justify-center mb-4">
               <FlipClock />
             </div>
-            <p className="text-center text-white/30 text-[10px] mt-4">
-              México 🇲🇽 vs Sudáfrica 🇿🇦 · Estadio Azteca
-            </p>
+            <div className="flex items-center justify-center gap-2 py-2.5 bg-gray-50 rounded-2xl">
+              <span className="text-lg">🇲🇽</span>
+              <span className="text-gray-500 text-xs font-semibold">
+                México vs Sudáfrica · Estadio Azteca
+              </span>
+              <span className="text-lg">🇿🇦</span>
+            </div>
           </div>
-        ) : (
+        )}
+
+        {/* ── PRÓXIMOS (solo cuando ya arrancó) ───────────────────── */}
+        {countdown.started &&
           liveMatches.length === 0 &&
           upcomingMatches.length > 0 && (
             <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
               <div className="px-5 pt-4 pb-2 border-b border-gray-100">
-                <p className="text-gray-400 text-xs font-semibold tracking-widest">
+                <p className="text-gray-400 text-xs font-bold tracking-widest">
                   📅 PRÓXIMOS PARTIDOS
                 </p>
               </div>
@@ -313,9 +402,7 @@ export default function DashboardPage() {
                     className="px-5 py-3 flex items-center gap-2"
                   >
                     <div className="flex-1 flex items-center gap-2 min-w-0">
-                      <span className="text-xl flex-shrink-0">
-                        {match.home_flag}
-                      </span>
+                      <span className="text-xl">{match.home_flag}</span>
                       <span className="text-gray-700 text-sm font-semibold truncate">
                         {match.home_team}
                       </span>
@@ -329,9 +416,7 @@ export default function DashboardPage() {
                       <span className="text-gray-700 text-sm font-semibold truncate text-right">
                         {match.away_team}
                       </span>
-                      <span className="text-xl flex-shrink-0">
-                        {match.away_flag}
-                      </span>
+                      <span className="text-xl">{match.away_flag}</span>
                     </div>
                   </div>
                 ))}
@@ -343,19 +428,93 @@ export default function DashboardPage() {
                 Ver todos los partidos →
               </button>
             </div>
-          )
-        )}
+          )}
 
-        {/* ===================== PREDICCIONES CTA ===================== */}
+        {/* ── PARTIDOS DE HOY ─────────────────────────────────────── */}
+        {(() => {
+          const displayMatches =
+            todayMatches.length > 0
+              ? todayMatches
+              : countdown.started
+                ? upcomingMatches
+                : [];
+          const title =
+            todayMatches.length > 0
+              ? "⚽ Partidos de hoy"
+              : "📅 Próximos partidos";
+          if (displayMatches.length === 0 || !countdown.started) return null;
+          return (
+            <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+              <div className="px-5 pt-4 pb-2 border-b border-gray-100 flex items-center justify-between">
+                <p className="font-bold text-gray-800 text-sm">{title}</p>
+                <button
+                  onClick={() => router.push("/partidos")}
+                  className="text-[#003DA5] text-xs font-semibold"
+                >
+                  Ver todos
+                </button>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {displayMatches.map((match) => {
+                  const live = getLiveStatus(match) === "live";
+                  const finished = match.status === "finished";
+                  return (
+                    <button
+                      key={match.id}
+                      onClick={() => router.push("/partidos")}
+                      className="w-full flex items-center gap-2 px-5 py-3 active:bg-gray-50 transition-colors"
+                    >
+                      <span className="text-xl flex-shrink-0">
+                        {match.home_flag}
+                      </span>
+                      <span className="text-xs font-semibold text-gray-700 flex-1 text-left truncate">
+                        {match.home_team}
+                      </span>
+                      <div className="flex-shrink-0 text-center min-w-[72px]">
+                        {finished ? (
+                          <span
+                            className="text-sm font-bold text-[#003DA5]"
+                            style={{ fontFamily: "Bebas Neue, sans-serif" }}
+                          >
+                            {match.home_score} - {match.away_score}
+                          </span>
+                        ) : live ? (
+                          <span className="flex items-center justify-center gap-1 text-xs font-bold text-red-500">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                            EN VIVO
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">
+                            {format(parseISO(match.match_date), "HH'h'mm", {
+                              locale: es,
+                            })}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs font-semibold text-gray-700 flex-1 text-right truncate">
+                        {match.away_team}
+                      </span>
+                      <span className="text-xl flex-shrink-0">
+                        {match.away_flag}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── CTA PREDICCIONES ────────────────────────────────────── */}
         <button
           onClick={() => router.push("/predicciones")}
-          className="w-full rounded-3xl p-5 text-left active:scale-95 transition-transform relative overflow-hidden"
-          style={{ background: "linear-gradient(135deg, #16a34a, #15803d)" }}
+          className="w-full rounded-3xl p-5 text-left active:scale-95 transition-transform relative overflow-hidden shadow-sm"
+          style={{ background: "linear-gradient(135deg, #E30613, #B30010)" }}
         >
-          <div className="absolute -right-4 -bottom-4 text-8xl opacity-20">
+          <div className="absolute -right-4 -bottom-4 text-8xl opacity-10 select-none">
             ⚽
           </div>
-          <p className="text-white/70 text-xs font-semibold tracking-widest mb-1">
+          <p className="text-white/70 text-xs font-bold tracking-widest mb-1">
             FASE DE GRUPOS
           </p>
           <h3 className="text-white font-bold text-xl mb-1">
@@ -384,86 +543,21 @@ export default function DashboardPage() {
           </div>
         </button>
 
-        {/* ===================== PARTIDOS DE HOY / PRÓXIMOS ===================== */}
-        {(() => {
-          const displayMatches =
-            todayMatches.length > 0 ? todayMatches : upcomingMatches;
-          const title =
-            todayMatches.length > 0 ? "Partidos de hoy" : "Próximos partidos";
-          if (displayMatches.length === 0) return null;
-          return (
-            <div className="bg-white rounded-3xl shadow-sm p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-bold text-gray-800 text-lg">{title}</h2>
-                <button
-                  onClick={() => router.push("/partidos")}
-                  className="text-[#003DA5] text-sm font-semibold"
-                >
-                  Ver todos
-                </button>
-              </div>
-              <div className="space-y-2">
-                {displayMatches.map((match) => {
-                  const live = getLiveStatus(match) === "live";
-                  const finished = match.status === "finished";
-                  return (
-                    <button
-                      key={match.id}
-                      onClick={() => router.push("/partidos")}
-                      className="w-full flex items-center gap-3 bg-gray-50 rounded-2xl px-3 py-2.5 active:scale-95 transition-transform"
-                    >
-                      <span className="text-xl">{match.home_flag}</span>
-                      <span className="text-xs font-semibold text-gray-700 w-16 text-right truncate">
-                        {match.home_team}
-                      </span>
-                      <div className="flex-1 text-center">
-                        {finished ? (
-                          <span
-                            className="text-sm font-bold text-[#003DA5]"
-                            style={{ fontFamily: "Bebas Neue, sans-serif" }}
-                          >
-                            {match.home_score} - {match.away_score}
-                          </span>
-                        ) : live ? (
-                          <span className="flex items-center justify-center gap-1 text-xs font-bold text-red-500">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                            EN VIVO
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-400 font-medium">
-                            {format(
-                              parseISO(match.match_date),
-                              "d MMM · HH'h'mm",
-                              { locale: es },
-                            )}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs font-semibold text-gray-700 w-16 truncate">
-                        {match.away_team}
-                      </span>
-                      <span className="text-xl">{match.away_flag}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* ===================== MINI TABLA ===================== */}
+        {/* ── MINI TABLA ──────────────────────────────────────────── */}
         {leaderboard.length > 0 && (
-          <div className="bg-white rounded-3xl shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-gray-800 text-lg">Tabla</h2>
+          <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+            <div className="px-5 pt-4 pb-3 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="font-bold text-gray-800 text-base flex items-center gap-2">
+                🏆 Tabla
+              </h2>
               <button
                 onClick={() => router.push("/tabla")}
-                className="text-[#003DA5] text-sm font-semibold"
+                className="text-[#003DA5] text-xs font-semibold"
               >
                 Ver todos
               </button>
             </div>
-            <div className="space-y-3">
+            <div className="divide-y divide-gray-50">
               {leaderboard.map((entry, i) => {
                 const isMe = entry.user_id === profile?.id;
                 const medal =
@@ -471,30 +565,22 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={entry.user_id}
-                    className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 ${
-                      isMe ? "bg-blue-50" : "bg-gray-50"
-                    }`}
+                    className={`flex items-center gap-3 px-5 py-3 ${isMe ? "bg-[#EEF4FF]" : ""}`}
                   >
-                    <span className="w-5 text-center text-sm">
-                      {medal ?? (
-                        <span className="font-bold text-gray-400 text-xs">
+                    <div className="w-6 text-center flex-shrink-0">
+                      {medal ? (
+                        <span className="text-base">{medal}</span>
+                      ) : (
+                        <span className="text-gray-400 font-bold text-xs">
                           {i + 1}
                         </span>
                       )}
-                    </span>
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#003DA5] to-blue-400 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                      {entry.avatar_url ? (
-                        <img
-                          src={entry.avatar_url}
-                          alt=""
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-white text-xs font-bold">
-                          {(entry.full_name ?? "?")[0]}
-                        </span>
-                      )}
                     </div>
+                    <AvatarBubble
+                      avatarUrl={entry.avatar_url}
+                      name={entry.full_name ?? "?"}
+                      size={34}
+                    />
                     <span
                       className={`flex-1 text-sm font-semibold truncate ${isMe ? "text-[#003DA5]" : "text-gray-800"}`}
                     >
@@ -513,19 +599,147 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ===================== MIS GRUPOS ===================== */}
-        <div className="bg-white rounded-3xl shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-bold text-gray-800 text-lg">Mis Grupos</h2>
+        {/* ── SISTEMA DE PUNTOS ───────────────────────────────────── */}
+        <button
+          onClick={() => router.push("/ayuda")}
+          className="w-full text-left active:scale-95 transition-transform rounded-3xl overflow-hidden shadow-sm"
+          style={{
+            background:
+              "linear-gradient(150deg, #0a1f5c 0%, #003DA5 60%, #1A5FBF 100%)",
+          }}
+        >
+          {/* Header */}
+          <div className="px-5 pt-5 pb-4">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="text-white/60 text-xs font-bold tracking-widest mb-1">
+                  CÓMO FUNCIONA
+                </p>
+                <h2 className="text-white font-bold text-lg leading-tight">
+                  Sistema de puntos
+                </h2>
+              </div>
+              <span className="text-3xl">🏆</span>
+            </div>
+
+            {/* Points pills */}
+            <div className="flex gap-2 mb-4">
+              {[
+                {
+                  pts: 3,
+                  label: "Exacto",
+                  bg: "bg-white",
+                  text: "text-[#003DA5]",
+                },
+                {
+                  pts: 1,
+                  label: "Ganador",
+                  bg: "bg-white/20",
+                  text: "text-white",
+                },
+                {
+                  pts: 0,
+                  label: "Error",
+                  bg: "bg-white/10",
+                  text: "text-white/60",
+                },
+              ].map(({ pts, label, bg, text }) => (
+                <div
+                  key={pts}
+                  className={`flex-1 ${bg} rounded-2xl py-3 text-center`}
+                >
+                  <p
+                    className={`font-bold text-2xl leading-tight ${text}`}
+                    style={{ fontFamily: "Bebas Neue, sans-serif" }}
+                  >
+                    {pts} pts
+                  </p>
+                  <p className={`text-xs font-semibold mt-0.5 ${text}`}>
+                    {label}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* Rows */}
+            <div className="space-y-2">
+              {[
+                {
+                  pts: "3",
+                  emoji: "🎯",
+                  title: "Resultado exacto",
+                  desc: "Marcador exacto · ej: 2-1 → 2-1",
+                },
+                {
+                  pts: "1",
+                  emoji: "✅",
+                  title: "Ganador / Empate",
+                  desc: "Acertás el resultado pero no el marcador",
+                },
+                {
+                  pts: "0",
+                  emoji: "❌",
+                  title: "Sin puntos",
+                  desc: "El resultado no coincide",
+                },
+              ].map(({ pts, emoji, title, desc }) => (
+                <div
+                  key={pts}
+                  className="flex items-center gap-3 bg-white/10 rounded-xl px-3 py-2.5"
+                >
+                  <span className="text-xl flex-shrink-0">{emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-xs font-semibold">{title}</p>
+                    <p className="text-white/50 text-xs">{desc}</p>
+                  </div>
+                  <span
+                    className="text-white font-bold text-lg flex-shrink-0"
+                    style={{ fontFamily: "Bebas Neue, sans-serif" }}
+                  >
+                    {pts}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Footer CTA */}
+          <div className="flex items-center justify-between px-5 py-3 bg-white/10 border-t border-white/10">
+            <span className="text-white/70 text-xs">
+              ⏰ Hasta 24hs antes de cada partido
+            </span>
+            <span className="text-white text-xs font-bold flex items-center gap-1">
+              Ver reglas completas
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </span>
+          </div>
+        </button>
+
+        {/* ── MIS GRUPOS ──────────────────────────────────────────── */}
+        <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+          <div className="px-5 pt-4 pb-3 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="font-bold text-gray-800 text-base">👥 Mis Grupos</h2>
             <button
               onClick={() => router.push("/grupos")}
-              className="text-[#003DA5] text-sm font-semibold"
+              className="text-[#003DA5] text-xs font-semibold"
             >
               Ver todos
             </button>
           </div>
           {groups.length === 0 ? (
-            <div className="text-center py-6">
+            <div className="text-center py-8 px-5">
               <span className="text-4xl block mb-3">👥</span>
               <p className="text-gray-500 text-sm mb-4">
                 Todavía no estás en ningún grupo
@@ -546,56 +760,56 @@ export default function DashboardPage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
-              {groups.slice(0, 3).map((group) => (
-                <button
-                  key={group.id}
-                  onClick={() => router.push(`/grupos/${group.id}`)}
-                  className="w-full flex items-center justify-between bg-[#F0F4FF] rounded-2xl px-4 py-3.5 active:scale-95 transition-transform"
-                >
-                  <div className="flex items-center gap-3">
+            <div>
+              <div className="divide-y divide-gray-50">
+                {groups.slice(0, 3).map((group) => (
+                  <button
+                    key={group.id}
+                    onClick={() => router.push(`/grupos/${group.id}`)}
+                    className="w-full flex items-center gap-3 px-5 py-3.5 active:bg-gray-50 transition-colors"
+                  >
                     <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center text-lg"
+                      className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
                       style={{
                         background: "linear-gradient(135deg, #003DA5, #1A5FBF)",
                       }}
                     >
                       🏆
                     </div>
-                    <div className="text-left">
-                      <p className="font-semibold text-gray-800 text-sm">
+                    <div className="text-left flex-1 min-w-0">
+                      <p className="font-semibold text-gray-800 text-sm truncate">
                         {group.name}
                       </p>
                       <p className="text-gray-400 text-xs">
                         Código: {group.invite_code}
                       </p>
                     </div>
-                  </div>
-                  <svg
-                    className="w-5 h-5 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </button>
-              ))}
-              <div className="flex gap-2 pt-1">
+                    <svg
+                      className="w-4 h-4 text-gray-300 flex-shrink-0"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2 p-4 border-t border-gray-50">
                 <button
                   onClick={() => router.push("/grupos/crear")}
-                  className="flex-1 bg-[#003DA5] text-white py-3 rounded-xl text-sm font-semibold active:scale-95 transition-transform"
+                  className="flex-1 bg-[#003DA5] text-white py-2.5 rounded-xl text-sm font-semibold active:scale-95 transition-transform"
                 >
                   + Crear grupo
                 </button>
                 <button
                   onClick={() => router.push("/grupos/unirse")}
-                  className="flex-1 border-2 border-[#003DA5] text-[#003DA5] py-3 rounded-xl text-sm font-semibold active:scale-95 transition-transform"
+                  className="flex-1 border-2 border-[#003DA5] text-[#003DA5] py-2.5 rounded-xl text-sm font-semibold active:scale-95 transition-transform"
                 >
                   Unirme
                 </button>
@@ -603,68 +817,7 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-
-        {/* ===================== SISTEMA DE PUNTOS ===================== */}
-        <div className="bg-white rounded-3xl shadow-sm p-5">
-          <h2 className="font-bold text-gray-800 text-base mb-4 flex items-center gap-2">
-            <span>📋</span> Sistema de puntos
-          </h2>
-          <div className="space-y-3">
-            {[
-              {
-                pts: 3,
-                color: "#003DA5",
-                title: "Resultado exacto",
-                desc: "Predecís el marcador exacto (ej: 2-1 → 2-1)",
-              },
-              {
-                pts: 1,
-                color: "#F59E0B",
-                title: "Ganador / Empate",
-                desc: "Acertás quién gana o si empatan, pero no el marcador",
-              },
-              {
-                pts: 0,
-                color: "#E5E7EB",
-                textColor: "#9CA3AF",
-                title: "Sin puntos",
-                desc: "El resultado no coincide con tu predicción",
-              },
-            ].map(({ pts, color, textColor, title, desc }) => (
-              <div key={pts} className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: color }}
-                >
-                  <span
-                    className="font-bold text-lg"
-                    style={{
-                      color: textColor ?? "white",
-                      fontFamily: "Bebas Neue, sans-serif",
-                    }}
-                  >
-                    {pts}
-                  </span>
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-800 text-sm">{title}</p>
-                  <p className="text-gray-400 text-xs">{desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 p-3 bg-amber-50 rounded-xl border border-amber-100">
-            <p className="text-amber-700 text-xs flex items-start gap-1.5">
-              <span>⏰</span>
-              <span>
-                Podés cargar y editar predicciones hasta{" "}
-                <strong>7 días antes</strong> de cada partido.
-              </span>
-            </p>
-          </div>
-        </div>
       </div>
-
       <BottomNav active="home" />
     </div>
   );

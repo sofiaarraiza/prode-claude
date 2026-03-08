@@ -275,13 +275,19 @@ function PrediccionesContent() {
             </select>
           </div>
         ) : (
-          <div className="bg-white/10 rounded-xl p-3 text-white/70 text-xs mb-3">
-            ⚠️ No estás en ningún grupo.{" "}
+          <div className="bg-red-500/90 rounded-2xl p-4 mb-3 text-center">
+            <span className="text-3xl block mb-2">🚫</span>
+            <p className="text-white font-bold text-sm mb-1">
+              Necesitás un grupo para predecir
+            </p>
+            <p className="text-white/80 text-xs mb-3">
+              Las predicciones se guardan dentro de un grupo. Sin grupo no podés jugar.
+            </p>
             <button
               onClick={() => router.push("/grupos")}
-              className="underline text-white font-semibold"
+              className="bg-white text-red-600 font-bold text-sm px-5 py-2 rounded-xl active:scale-95 transition-transform"
             >
-              Crear o unirte
+              Crear o unirme a un grupo →
             </button>
           </div>
         )}
@@ -536,9 +542,14 @@ function MatchCard({
     return "·";
   };
 
+  const isEditing = (prediction?.home !== undefined || prediction?.away !== undefined) && !prediction?.saved && status === "open";
+
   return (
     <div
-      className={`bg-white rounded-3xl overflow-hidden shadow-sm ${status === "finished" ? "opacity-90" : ""}`}
+      className={`bg-white rounded-3xl overflow-hidden shadow-sm transition-all duration-200
+        ${status === "finished" ? "opacity-90" : ""}
+        ${isEditing ? "ring-2 ring-[#003DA5] shadow-md shadow-[#003DA5]/20" : ""}
+      `}
     >
       {/* Match header */}
       <div className="px-4 py-2.5 flex items-center justify-between bg-[#F8FAFF] border-b border-gray-100">
@@ -610,8 +621,8 @@ function MatchCard({
                   onChange={(e) => onChange(match.id, "home", e.target.value)}
                   onBlur={() => hasUnsaved && onSave(match)}
                   disabled={status === "locked" || !selectedGroup}
-                  className="score-input"
-                  placeholder="0"
+                  className={`score-input ${!prediction?.home && prediction?.home !== "0" ? "score-input-empty" : ""}`}
+                  placeholder="?"
                 />
                 <span className="text-gray-300 font-bold text-xl">:</span>
                 <input
@@ -622,8 +633,8 @@ function MatchCard({
                   onChange={(e) => onChange(match.id, "away", e.target.value)}
                   onBlur={() => hasUnsaved && onSave(match)}
                   disabled={status === "locked" || !selectedGroup}
-                  className="score-input"
-                  placeholder="0"
+                  className={`score-input ${!prediction?.away && prediction?.away !== "0" ? "score-input-empty" : ""}`}
+                  placeholder="?"
                 />
               </div>
             )}

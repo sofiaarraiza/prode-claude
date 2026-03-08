@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 
-type NavItem = "home" | "predicciones" | "partidos" | "grupos" | "tabla";
+type NavItem =
+  | "home"
+  | "predicciones"
+  | "partidos"
+  | "grupos"
+  | "tabla"
+  | "perfil";
 
 interface Props {
   active: NavItem;

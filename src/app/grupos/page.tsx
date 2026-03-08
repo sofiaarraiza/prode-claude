@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, type Group } from "@/lib/supabase";
 
+import BottomNav from "@/components/layout/BottomNav";
+
 export default function GruposPage() {
   const router = useRouter();
   const [groups, setGroups] = useState<Group[]>([]);
@@ -34,37 +36,15 @@ export default function GruposPage() {
     <div className="min-h-dvh bg-[#F0F4FF] pb-24">
       {/* Header */}
       <div className="bg-fifa-pattern px-5 pt-14 pb-12 relative">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.back()}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </button>
-          <div>
-            <p className="text-white/60 text-xs tracking-widest">
-              PRODE MUNDIAL
-            </p>
-            <h1
-              className="text-white font-display text-2xl"
-              style={{ fontFamily: "Bebas Neue, sans-serif" }}
-            >
-              MIS GRUPOS
-            </h1>
-          </div>
-        </div>
+        <p className="text-white/60 text-xs tracking-widest mb-1">
+          COPA DEL MUNDO 2026
+        </p>
+        <h1
+          className="text-white text-3xl font-bold mb-0"
+          style={{ fontFamily: "Bebas Neue, sans-serif" }}
+        >
+          MIS GRUPOS
+        </h1>
       </div>
 
       <div className="px-5 -mt-4 relative z-10">
@@ -176,6 +156,7 @@ export default function GruposPage() {
           </div>
         )}
       </div>
+      <BottomNav active="grupos" />
     </div>
   );
 }
