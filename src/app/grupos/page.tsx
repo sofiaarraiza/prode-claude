@@ -3,163 +3,235 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, type Group } from "@/lib/supabase";
-
 import BottomNav from "@/components/layout/BottomNav";
+import {
+  Users01,
+  Trophy01,
+  Plus,
+  ChevronRight,
+  LogIn01,
+} from "@untitledui/icons";
+
+type GroupWithMeta = Group & {
+  member_count: number;
+  is_admin: boolean;
+};
 
 export default function GruposPage() {
   const router = useRouter();
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [groups, setGroups] = useState<GroupWithMeta[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
-        router.replace("/auth/login");
-        return;
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.replace("/auth/login"); return; }
+      const uid = session.user.id;
 
-      const { data } = await supabase
+      // Fetch groups I belong to
+      const { data: memberRows } = await supabase
         .from("group_members")
         .select("groups(*)")
-        .eq("user_id", session.user.id);
+        .eq("user_id", uid);
 
-      setGroups(data?.map((m: any) => m.groups).filter(Boolean) ?? []);
+      const baseGroups: Group[] = memberRows?.map((m: any) => m.groups).filter(Boolean) ?? [];
+
+      // Fetch member counts in parallel
+      const counts = await Promise.all(
+        baseGroups.map((g) =>
+          supabase
+            .from("group_members")
+            .select("user_id", { count: "exact", head: true })
+            .eq("group_id", g.id)
+        )
+      );
+
+      const enriched: GroupWithMeta[] = baseGroups.map((g, i) => ({
+        ...g,
+        member_count: counts[i].count ?? 0,
+        is_admin: g.admin_id === uid,
+      }));
+
+      setGroups(enriched);
       setLoading(false);
     };
     load();
   }, [router]);
 
   return (
-    <div className="min-h-dvh bg-app pb-24">
-      {/* Header */}
-      <div className="bg-fifa-pattern px-5 pt-14 pb-12 relative">
-        <p className="text-white/60 text-xs tracking-widest mb-1">
-          COPA DEL MUNDO 2026
+    <div className="min-h-dvh pb-24 page-gradient" style={{ fontFamily: "Inter, sans-serif" }}>
+
+      {/* ── HEADER ──────────────────────────────────────────────────────── */}
+      <div
+        className="relative px-4"
+        style={{
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 16px)",
+          paddingBottom: 20,
+        }}
+      >
+        <p
+          className="text-xs font-semibold uppercase tracking-widest mb-1"
+          style={{ color: "var(--color-gray-500, #717680)", letterSpacing: "0.12em" }}
+        >
+          Copa del Mundo 2026
         </p>
         <h1
-          className="text-white text-3xl font-bold mb-0"
-          style={{ fontFamily: "Bebas Neue, sans-serif" }}
+          style={{
+            fontFamily: "Inter, sans-serif",
+            fontSize: 26,
+            fontWeight: 800,
+            color: "var(--color-gray-900, #181d27)",
+            lineHeight: 1.15,
+            marginBottom: 16,
+          }}
         >
-          MIS GRUPOS
+          Mis grupos
         </h1>
-      </div>
 
-      <div className="px-5 -mt-4 relative z-10">
-        {/* Action buttons */}
-        <div className="flex gap-3 mb-5">
+        {/* Action buttons — igual al dashboard */}
+        <div className="flex gap-2">
           <button
+            id="btn-crear-grupo"
             onClick={() => router.push("/grupos/crear")}
-            className="flex-1 bg-[#003DA5] text-white py-3.5 rounded-2xl font-semibold text-sm shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-2"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold active:opacity-80 transition-opacity"
+            style={{ background: "var(--color-brand-600, #003da5)", color: "white" }}
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
+            <Plus width={15} height={15} />
             Crear grupo
           </button>
           <button
+            id="btn-unirse-grupo"
             onClick={() => router.push("/grupos/unirse")}
-            className="flex-1 bg-surface border-2 border-[color:var(--color-primary)] text-[color:var(--color-primary)] py-3.5 rounded-2xl font-semibold text-sm active:scale-95 transition-transform flex items-center justify-center gap-2"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold active:opacity-80 transition-opacity card-white"
+            style={{
+              border: "1px solid var(--color-gray-300, #d5d7da)",
+              color: "var(--color-gray-700, #414651)",
+            }}
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-              />
-            </svg>
+            <LogIn01 width={15} height={15} />
             Unirme
           </button>
         </div>
+      </div>
 
-        {/* Groups list */}
+      {/* ── CONTENT ─────────────────────────────────────────────────────── */}
+      <div className="px-4">
+
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 rounded-3xl skeleton" />
+              <div key={i} className="h-[72px] rounded-2xl skeleton" />
             ))}
           </div>
+
         ) : groups.length === 0 ? (
-          <div className="bg-surface rounded-3xl p-8 text-center">
-            <span className="text-5xl block mb-3">👥</span>
-            <p className="font-bold text-[color:var(--color-text-2)] mb-2">
-              Sin grupos todavía
+          /* Empty state */
+          <div
+            className="card-white rounded-2xl px-5 py-10 text-center"
+            style={{ border: "1px solid var(--color-gray-200, #e9eaeb)", boxShadow: "0 1px 3px rgba(10,13,18,0.08)" }}
+          >
+            <div
+              className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+              style={{ background: "var(--color-brand-50, #eff4ff)" }}
+            >
+              <Users01 width={26} height={26} style={{ color: "var(--color-brand-600, #003da5)" }} />
+            </div>
+            <h3 className="text-base font-semibold mb-1" style={{ color: "var(--color-gray-900, #181d27)" }}>
+              Jugá con tus amigos
+            </h3>
+            <p className="text-sm mb-5" style={{ color: "var(--color-gray-500, #717680)" }}>
+              Creá un grupo o usá un código para unirte al de tus amigos y competir en el prode del Mundial.
             </p>
-            <p className="text-[color:var(--color-muted)] text-sm">
-              Creá un grupo o usá un código para unirte al de tus amigos.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {groups.map((group) => (
+            <div className="flex gap-2">
               <button
-                key={group.id}
-                onClick={() => router.push(`/grupos/${group.id}`)}
-                className="w-full bg-surface rounded-3xl p-5 text-left shadow-sm active:scale-98 transition-transform"
+                onClick={() => router.push("/grupos/crear")}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold active:opacity-80 transition-opacity"
+                style={{ background: "var(--color-brand-600, #003da5)", color: "white" }}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl"
-                      style={{
-                        background: "linear-gradient(135deg, #003DA5, #1A5FBF)",
-                      }}
-                    >
-                      🏆
-                    </div>
-                    <div>
-                      <p className="font-bold text-[color:var(--color-text)]">
+                Crear grupo
+              </button>
+              <button
+                onClick={() => router.push("/grupos/unirse")}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold active:opacity-80 transition-opacity card-white"
+                style={{ border: "1px solid var(--color-gray-300, #d5d7da)", color: "var(--color-gray-700, #414651)" }}
+              >
+                Ingresar código
+              </button>
+            </div>
+          </div>
+
+        ) : (
+          <>
+            <div
+              className="card-white rounded-2xl overflow-hidden"
+              style={{ border: "1px solid var(--color-gray-200, #e9eaeb)", boxShadow: "0 1px 3px rgba(10,13,18,0.08)" }}
+            >
+              {groups.map((group, i) => (
+                <button
+                  key={group.id}
+                  onClick={() => router.push(`/grupos/${group.id}`)}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 active:opacity-70 transition-opacity text-left"
+                  style={{ borderTop: i > 0 ? "1px solid var(--color-gray-100, #f5f5f5)" : "none" }}
+                >
+                  {/* Group icon */}
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "var(--color-brand-50, #eff4ff)", border: "1px solid var(--color-brand-100, #d1e0ff)" }}
+                  >
+                    <Trophy01 width={18} height={18} style={{ color: "var(--color-brand-600, #003da5)" }} />
+                  </div>
+
+                  {/* Name + meta */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-semibold truncate" style={{ color: "var(--color-gray-900, #181d27)" }}>
                         {group.name}
                       </p>
-                      {group.description && (
-                        <p className="text-[color:var(--color-muted)] text-xs mt-0.5 line-clamp-1">
-                          {group.description}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <span className="bg-surface-2 text-[color:var(--color-primary)] text-xs font-semibold px-2 py-0.5 rounded-full">
-                          {group.invite_code}
+                      {group.is_admin && (
+                        <span
+                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                          style={{ background: "var(--color-brand-50, #eff4ff)", color: "var(--color-brand-600, #003da5)" }}
+                        >
+                          Admin
                         </span>
-                      </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span
+                        className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full tracking-wider"
+                        style={{ background: "var(--color-gray-100, #f5f5f5)", color: "var(--color-gray-500, #717680)" }}
+                      >
+                        {group.invite_code}
+                      </span>
+                      <span className="flex items-center gap-0.5 text-xs" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>
+                        <Users01 width={10} height={10} />
+                        {group.member_count}
+                      </span>
                     </div>
                   </div>
-                  <svg
-                    className="w-5 h-5 text-[color:var(--color-muted-2)]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </div>
-              </button>
-            ))}
-          </div>
+
+                  <ChevronRight width={16} height={16} style={{ color: "var(--color-gray-300, #d5d7da)", flexShrink: 0 }} />
+                </button>
+              ))}
+            </div>
+
+            {/* Tip card */}
+            <div
+              className="mt-3 px-4 py-3 rounded-2xl flex items-center gap-3"
+              style={{
+                background: "var(--color-brand-50, #eff4ff)",
+                border: "1px solid var(--color-brand-100, #d1e0ff)",
+              }}
+            >
+              <Users01 width={16} height={16} style={{ color: "var(--color-brand-600, #003da5)", flexShrink: 0 }} />
+              <p className="text-xs" style={{ color: "var(--color-brand-700, #003da5)" }}>
+                <strong>Tip:</strong> Podés pertenecer a varios grupos a la vez — familia, trabajo, amigos. Cada uno tiene su propia tabla.
+              </p>
+            </div>
+          </>
         )}
       </div>
+
       <BottomNav active="grupos" />
     </div>
   );

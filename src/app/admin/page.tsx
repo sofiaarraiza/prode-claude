@@ -146,7 +146,7 @@ export default function AdminPage() {
   if (loading) {
     return (
       <div className="min-h-dvh bg-app flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-[#003DA5] border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-[#003da5] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -191,7 +191,7 @@ export default function AdminPage() {
             <button
               onClick={handleSync}
               disabled={syncing}
-              className="flex items-center gap-2 bg-[#003DA5] text-white px-4 py-2.5 rounded-xl text-sm font-semibold active:scale-95 transition-transform disabled:opacity-50 flex-shrink-0"
+              className="flex items-center gap-2 bg-[#003da5] text-white px-4 py-2.5 rounded-xl text-sm font-semibold active:scale-95 transition-transform disabled:opacity-50 flex-shrink-0"
             >
               {syncing ? (
                 <>
@@ -289,7 +289,7 @@ export default function AdminPage() {
               onClick={() => setActiveTab(g)}
               className={`flex-shrink-0 flex flex-col items-center px-3 py-2 rounded-xl transition-all ${
                 activeTab === g
-                  ? "bg-[#003DA5] text-white"
+                  ? "bg-[#003da5] text-white"
                   : "bg-white/10 text-white/60"
               }`}
             >

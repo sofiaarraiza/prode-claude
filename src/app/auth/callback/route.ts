@@ -39,5 +39,17 @@ export async function GET(request: Request) {
     }
   }
 
+  // Check if user needs to set a username
+  const cookieStore2 = cookies()
+  const supabase2 = createRouteHandlerClient({ cookies: () => cookieStore2 })
+  const { data: { session } } = await supabase2.auth.getSession()
+  if (session) {
+    const { data: profile } = await supabase2
+      .from('profiles').select('username').eq('id', session.user.id).single()
+    if (!profile?.username) {
+      return NextResponse.redirect(new URL('/auth/username', requestUrl.origin))
+    }
+  }
+
   return NextResponse.redirect(new URL('/dashboard', requestUrl.origin))
 }

@@ -11,6 +11,7 @@ export type Profile = {
   id: string
   email: string
   full_name: string | null
+  username: string | null
   avatar_url: string | null
   created_at: string
 }
@@ -67,6 +68,7 @@ export type Prediction = {
 export type LeaderboardEntry = {
   group_id: string
   user_id: string
+  username: string | null
   full_name: string | null
   avatar_url: string | null
   total_points: number

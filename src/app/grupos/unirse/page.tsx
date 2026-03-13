@@ -3,6 +3,11 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import {
+  ArrowNarrowLeft,
+  ArrowNarrowRight,
+  Key01,
+} from "@untitledui/icons";
 
 function UnirseGrupoContent() {
   const router = useRouter();
@@ -19,22 +24,17 @@ function UnirseGrupoContent() {
     const upperCode = paramCode.toUpperCase();
     setCode(upperCode);
 
-    // Intentar auto-unirse si ya hay sesión activa
     const tryAutoJoin = async () => {
       setAutoJoining(true);
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
-        // No hay sesión — guardar código en cookie y localStorage, redirigir a login
         document.cookie = `pending_invite_code=${upperCode}; path=/; max-age=600; SameSite=Lax`;
         localStorage.setItem("pending_invite_code", upperCode);
         router.replace("/auth/login");
         return;
       }
 
-      // Hay sesión — unirse directamente
       await joinWithCode(upperCode, session.user.id);
     };
 
@@ -86,11 +86,8 @@ function UnirseGrupoContent() {
     setLoading(true);
     setError("");
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      // Guardar código en cookie y localStorage, redirigir a login
       document.cookie = `pending_invite_code=${code.toUpperCase()}; path=/; max-age=600; SameSite=Lax`;
       localStorage.setItem("pending_invite_code", code.toUpperCase());
       router.replace("/auth/login");
@@ -102,65 +99,97 @@ function UnirseGrupoContent() {
 
   if (autoJoining) {
     return (
-      <main className="min-h-dvh bg-app flex items-center justify-center">
+      <div className="min-h-dvh flex items-center justify-center page-gradient" style={{ fontFamily: "Inter, sans-serif" }}>
         <div className="text-center px-5">
-          <div className="w-16 h-16 border-4 border-[#003DA5] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-[color:var(--color-text-2)] font-semibold text-lg">
+          <div
+            className="w-14 h-14 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-5"
+            style={{ borderColor: "var(--color-brand-200, #b2ccff)", borderTopColor: "var(--color-brand-600, #003da5)" }}
+          />
+          <p className="text-base font-semibold mb-1" style={{ color: "var(--color-gray-900, #181d27)" }}>
             Uniéndote al grupo...
           </p>
-          <p className="text-[color:var(--color-muted)] text-sm mt-1">
+          <p className="text-sm" style={{ color: "var(--color-gray-500, #717680)" }}>
             Un momento
           </p>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="min-h-dvh bg-app">
-      <div className="bg-fifa-pattern px-5 pt-14 pb-12">
-        <div className="flex items-center gap-3">
+    <div className="min-h-dvh page-gradient" style={{ fontFamily: "Inter, sans-serif" }}>
+
+      {/* ── HEADER ──────────────────────────────────────────────────────── */}
+      <div
+        className="relative px-4"
+        style={{
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 16px)",
+          paddingBottom: 24,
+        }}
+      >
+        <div className="flex items-center justify-between mb-5">
           <button
             onClick={() => router.back()}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white"
+            className="w-9 h-9 rounded-xl flex items-center justify-center active:opacity-70 transition-opacity glass-pill"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
+            <ArrowNarrowLeft width={18} height={18} className="glass-btn" />
           </button>
-          <div>
-            <p className="text-white/60 text-xs tracking-widest">GRUPOS</p>
-            <h1
-              className="text-white font-display text-2xl"
-              style={{ fontFamily: "Bebas Neue, sans-serif" }}
-            >
-              UNIRME A UN GRUPO
-            </h1>
-          </div>
         </div>
+
+        <p
+          className="text-xs font-semibold uppercase tracking-widest mb-1"
+          style={{ color: "var(--color-gray-500, #717680)", letterSpacing: "0.12em" }}
+        >
+          Grupos
+        </p>
+        <h1
+          style={{
+            fontFamily: "Inter, sans-serif",
+            fontSize: 26,
+            fontWeight: 800,
+            color: "var(--color-gray-900, #181d27)",
+            lineHeight: 1.15,
+          }}
+        >
+          Unirme a un grupo
+        </h1>
       </div>
 
-      <div className="px-5 -mt-4 relative z-10">
-        <div className="bg-surface rounded-3xl shadow-sm p-6">
-          <div className="text-center mb-6">
-            <span className="text-5xl block mb-3">🔑</span>
-            <p className="text-[color:var(--color-muted)] text-sm">
-              Ingresá el código que te compartió el organizador del grupo
-            </p>
-          </div>
+      {/* ── FORM ────────────────────────────────────────────────────────── */}
+      <div className="px-4 space-y-4">
 
-          <form onSubmit={handleJoin} className="space-y-4">
-            <div>
+        {/* Icon + instruction */}
+        <div
+          className="card-white rounded-2xl flex items-center gap-4 px-4 py-4"
+          style={{ border: "1px solid var(--color-gray-200, #e9eaeb)", boxShadow: "0 1px 3px rgba(10,13,18,0.08)" }}
+        >
+          <div
+            className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--color-brand-50, #eff4ff)" }}
+          >
+            <Key01 width={20} height={20} style={{ color: "var(--color-brand-600, #003da5)" }} />
+          </div>
+          <p className="text-sm" style={{ color: "var(--color-gray-600, #535862)" }}>
+            Ingresá el <strong style={{ color: "var(--color-gray-900, #181d27)" }}>código</strong> que te compartió el organizador del grupo.
+          </p>
+        </div>
+
+        <form onSubmit={handleJoin} className="space-y-4">
+          {/* Code input */}
+          <div
+            className="card-white rounded-2xl overflow-hidden"
+            style={{ border: "1px solid var(--color-gray-200, #e9eaeb)", boxShadow: "0 1px 3px rgba(10,13,18,0.08)" }}
+          >
+            <div
+              className="flex items-center gap-2 px-4 py-2.5"
+              style={{ borderBottom: "1px solid var(--color-gray-100, #f5f5f5)" }}
+            >
+              <Key01 width={13} height={13} style={{ color: "var(--color-gray-400, #a4a7ae)" }} />
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-gray-500, #717680)" }}>
+                Código de invitación
+              </p>
+            </div>
+            <div className="px-4 py-3">
               <input
                 type="text"
                 value={code}
@@ -168,41 +197,45 @@ function UnirseGrupoContent() {
                 placeholder="Ej: ABC123"
                 required
                 maxLength={6}
-                className="w-full bg-surface-2 border-2 border-transparent rounded-2xl px-4 py-4 text-[color:var(--color-text)] text-2xl text-center font-bold tracking-[0.3em] focus:outline-none focus:border-[color:var(--color-primary)] transition-colors"
+                className="w-full text-center font-extrabold text-3xl focus:outline-none bg-transparent tracking-[0.3em]"
                 style={{
-                  fontFamily: "Bebas Neue, sans-serif",
+                  color: code ? "var(--color-brand-600, #003da5)" : "var(--color-gray-300, #d5d7da)",
                   letterSpacing: "0.3em",
+                  fontFamily: "Inter, sans-serif",
                 }}
               />
             </div>
+          </div>
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                <p className="text-red-600 text-sm text-center">{error}</p>
-              </div>
+          {/* Error */}
+          {error && (
+            <div className="px-4 py-3 rounded-xl" style={{ background: "#fef2f2", border: "1px solid #fecdd3" }}>
+              <p className="text-sm text-center" style={{ color: "#e11d48" }}>{error}</p>
+            </div>
+          )}
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={loading || code.trim().length < 4}
+            className="w-full py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 active:opacity-80 transition-opacity disabled:opacity-50"
+            style={{ background: "var(--color-brand-600, #003da5)" }}
+          >
+            {loading ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Buscando...
+              </>
+            ) : (
+              <>
+                Unirme al grupo
+                <ArrowNarrowRight width={16} height={16} />
+              </>
             )}
-
-            <button
-              type="submit"
-              disabled={loading || code.trim().length < 4}
-              className="w-full py-4 rounded-2xl font-semibold text-base text-white transition-all active:scale-95 disabled:opacity-50"
-              style={{
-                background: "linear-gradient(135deg, #003DA5, #1A5FBF)",
-              }}
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Buscando...
-                </span>
-              ) : (
-                "Unirme al grupo"
-              )}
-            </button>
-          </form>
-        </div>
+          </button>
+        </form>
       </div>
-    </main>
+    </div>
   );
 }
 

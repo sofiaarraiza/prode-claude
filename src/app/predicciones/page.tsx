@@ -10,8 +10,24 @@ import {
 } from "@/lib/supabase";
 import { GROUPS, isMatchEditable } from "@/lib/fixture";
 import BottomNav from "@/components/layout/BottomNav";
-import { format, parseISO } from "date-fns";
+import ThemeToggle from "@/components/layout/ThemeToggle";
+import { format, parseISO, differenceInHours, differenceInMinutes } from "date-fns";
 import { es } from "date-fns/locale";
+import {
+  Trophy01,
+  HelpCircle,
+  AlertCircle,
+  ChevronRight,
+  CheckDone01,
+  SearchLg,
+  Calendar,
+  List,
+  Lock01,
+  Target01,
+  CheckCircle,
+  XCircle,
+  Check,
+} from "@untitledui/icons";
 
 type PredictionMap = Record<
   string,
@@ -19,7 +35,6 @@ type PredictionMap = Record<
 >;
 type ViewMode = "grupos" | "fechas" | "buscar";
 
-// Predicciones de compañeros por partido
 type TeammatePred = {
   user_id: string;
   full_name: string;
@@ -30,6 +45,31 @@ type TeammatePred = {
 };
 type TeammatesMap = Record<string, TeammatePred[]>;
 
+// ─── Urgent countdown (< 24 h to kick-off) ──────────────────────────────────
+function UrgentCountdown({ match }: { match: Match }) {
+  const getTimeLeft = () => {
+    const diff = parseISO(match.match_date).getTime() - Date.now();
+    if (diff <= 0) return null;
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    return { h, m };
+  };
+  const [t, setT] = useState(getTimeLeft);
+  useEffect(() => {
+    const id = setInterval(() => setT(getTimeLeft()), 30000);
+    return () => clearInterval(id);
+  }, []);
+  if (!t) return null;
+  return (
+    <span
+      className="text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md"
+      style={{ background: "rgba(239,68,68,0.12)", color: "#ef4444" }}
+    >
+      {t.h > 0 ? `${t.h}h ${t.m}m` : `${t.m}m`}
+    </span>
+  );
+}
+
 function PrediccionesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -37,9 +77,7 @@ function PrediccionesContent() {
 
   const [matches, setMatches] = useState<Match[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState<string>(
-    groupIdParam ?? "",
-  );
+  const [selectedGroup, setSelectedGroup] = useState<string>(groupIdParam ?? "");
   const [predictions, setPredictions] = useState<PredictionMap>({});
   const [teammates, setTeammates] = useState<TeammatesMap>({});
   const [expandedMatch, setExpandedMatch] = useState<string | null>(null);
@@ -82,7 +120,6 @@ function PrediccionesContent() {
     load();
   }, [router]);
 
-  // Cargar mis predicciones cuando cambia el grupo
   useEffect(() => {
     if (!selectedGroup || !userId) return;
     const loadPreds = async () => {
@@ -106,14 +143,12 @@ function PrediccionesContent() {
     loadPreds();
   }, [selectedGroup, userId]);
 
-  // Cargar predicciones de compañeros para partidos finalizados
   useEffect(() => {
     if (!selectedGroup) return;
     const loadTeammates = async () => {
       const finishedMatchIds = matches
         .filter((m) => m.status === "finished")
         .map((m) => m.id);
-
       if (finishedMatchIds.length === 0) return;
 
       const { data } = await supabase
@@ -137,7 +172,6 @@ function PrediccionesContent() {
       });
       setTeammates(map);
     };
-
     if (matches.length > 0) loadTeammates();
   }, [matches, selectedGroup, userId]);
 
@@ -156,14 +190,7 @@ function PrediccionesContent() {
   const savePrediction = async (match: Match) => {
     if (!selectedGroup) return;
     const pred = predictions[match.id];
-    if (
-      !pred ||
-      pred.home === "" ||
-      pred.home === undefined ||
-      pred.away === "" ||
-      pred.away === undefined
-    )
-      return;
+    if (!pred || pred.home === "" || pred.home === undefined || pred.away === "" || pred.away === undefined) return;
 
     setSaving(match.id);
     const { error } = await supabase.from("predictions").upsert(
@@ -176,7 +203,6 @@ function PrediccionesContent() {
       },
       { onConflict: "user_id,match_id,group_id" },
     );
-
     if (!error) {
       setPredictions((prev) => ({
         ...prev,
@@ -191,6 +217,69 @@ function PrediccionesContent() {
     if (!isMatchEditable(match.match_date)) return "locked";
     return "open";
   };
+
+  // ─── Partidos urgentes: open + cierra en < 24h ──────────────────────────
+  const urgentMatches = useMemo(() => {
+    const now = Date.now();
+
+    // 🔧 DEMO — partidos fake urgentes para previsualización (borrar cuando el torneo arranque)
+    const DEMO_URGENT: Match[] = [
+      {
+        id: "demo-urgent-1",
+        home_team: "Francia",
+        away_team: "España",
+        home_flag: "🇫🇷",
+        away_flag: "🇪🇸",
+        home_score: null,
+        away_score: null,
+        group_name: "E",
+        phase: "group",
+        status: "scheduled",
+        match_date: new Date(now + 2 * 60 * 60 * 1000).toISOString(), // cierra en 2 horas
+        city: "Dallas",
+      } as any,
+      {
+        id: "demo-urgent-2",
+        home_team: "Alemania",
+        away_team: "Portugal",
+        home_flag: "🇩🇪",
+        away_flag: "🇵🇹",
+        home_score: null,
+        away_score: null,
+        group_name: "F",
+        phase: "group",
+        status: "scheduled",
+        match_date: new Date(now + 5 * 60 * 60 * 1000).toISOString(), // cierra en 5 horas
+        city: "Los Ángeles",
+      } as any,
+    ];
+
+    const real = matches.filter((m) => {
+      if (m.status === "finished") return false;
+      const ms = parseISO(m.match_date).getTime();
+      const hoursDiff = (ms - now) / 3600000;
+      const hasPred = predictions[m.id]?.saved;
+      return hoursDiff >= 0 && hoursDiff < 24 && !hasPred;
+    });
+
+    // DEMO siempre sin predicción guardada, los reales filtran normalmente
+    return [...DEMO_URGENT, ...real];
+  }, [matches, predictions]);
+
+
+  // ─── Progreso por grupo de copa (A-L) ───────────────────────────────────
+  const groupProgress = useMemo(() => {
+    return GROUPS.map((g) => {
+      const groupMatches = matches.filter((m) => m.group_name === g);
+      const total = groupMatches.length;
+      const done = groupMatches.filter((m) => predictions[m.id]?.saved).length;
+      return { group: g, total, done, pct: total > 0 ? Math.round((done / total) * 100) : 0 };
+    });
+  }, [matches, predictions]);
+
+  const totalMatches = matches.length;
+  const totalDone = matches.filter((m) => predictions[m.id]?.saved).length;
+  const overallPct = totalMatches > 0 ? Math.round((totalDone / totalMatches) * 100) : 0;
 
   const matchesByDate = useMemo(() => {
     const grouped: Record<string, Match[]> = {};
@@ -214,8 +303,11 @@ function PrediccionesContent() {
 
   if (loading) {
     return (
-      <div className="min-h-dvh bg-app flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-[#003DA5] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-dvh flex items-center justify-center page-gradient">
+        <div
+          className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin"
+          style={{ borderColor: "#1e6a94", borderTopColor: "transparent" }}
+        />
       </div>
     );
   }
@@ -235,236 +327,642 @@ function PrediccionesContent() {
   });
 
   return (
-    <div className="min-h-dvh bg-app pb-24">
-      {/* Header */}
-      <div className="bg-fifa-pattern px-5 pt-14 pb-4">
-        <p className="text-white/60 text-xs tracking-widest mb-1">
-          COPA DEL MUNDO 2026
-        </p>
-        <h1
-          className="text-white font-display text-3xl mb-4"
-          style={{ fontFamily: "Bebas Neue, sans-serif" }}
-        >
-          MIS PREDICCIONES
-        </h1>
-
-        {groups.length > 0 ? (
-          <div>
-            <p className="text-white/60 text-xs mb-1.5">Grupo seleccionado</p>
-            <select
-              value={selectedGroup}
-              onChange={(e) => setSelectedGroup(e.target.value)}
-              className="w-full bg-white/20 text-white rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-none appearance-none mb-3"
+    <div
+      className="min-h-dvh pb-24 page-gradient"
+      style={{ fontFamily: "Inter, sans-serif" }}
+    >
+      {/* ── HEADER ───────────────────────────────────────────────────────── */}
+      <div
+        className="relative px-4"
+        style={{
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 16px)",
+          paddingBottom: 16,
+        }}
+      >
+        <div className="flex items-center justify-between gap-3">
+          {/* Left: icon + title */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
               style={{
-                backgroundImage:
-                  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 20 20'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")",
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "right 10px center",
-                backgroundSize: "16px",
+                background: "linear-gradient(135deg, #003da5 0%, #1a55bd 100%)",
+                boxShadow: "0 2px 8px rgba(0,61,165,0.35)",
               }}
             >
-              {groups.map((g) => (
-                <option
-                  key={g.id}
-                  value={g.id}
-                  style={{ color: "#003DA5", background: "white" }}
-                >
-                  {g.name}
-                </option>
-              ))}
-            </select>
+              <Trophy01 width={20} height={20} style={{ color: "white" }} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium leading-none mb-0.5 text-muted">
+                Copa del Mundo 2026
+              </p>
+              <h1
+                className="leading-tight"
+                style={{
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: "var(--color-gray-900, #181d27)",
+                }}
+              >
+                Mis Predicciones
+              </h1>
+            </div>
           </div>
-        ) : (
-          <div className="bg-red-500/90 rounded-2xl p-4 mb-3 text-center">
-            <span className="text-3xl block mb-2">🚫</span>
-            <p className="text-white font-bold text-sm mb-1">
-              Necesitás un grupo para predecir
-            </p>
-            <p className="text-white/80 text-xs mb-3">
-              Las predicciones se guardan dentro de un grupo. Sin grupo no podés
-              jugar.
-            </p>
-            <button
-              onClick={() => router.push("/grupos")}
-              className="bg-white text-red-600 font-bold text-sm px-5 py-2 rounded-xl active:scale-95 transition-transform"
-            >
-              Crear o unirme a un grupo →
-            </button>
-          </div>
-        )}
 
-        <div className="flex gap-2">
-          {(["grupos", "fechas", "buscar"] as ViewMode[]).map((mode) => (
+          {/* Right: action pills */}
+          <div className="flex items-center gap-1 flex-shrink-0 px-1.5 py-1.5 rounded-2xl glass-pill">
+            <ThemeToggle variant="header" />
             <button
-              key={mode}
-              onClick={() => {
-                setViewMode(mode);
-                if (mode === "buscar")
-                  setTimeout(
-                    () => document.getElementById("search-input")?.focus(),
-                    100,
-                  );
-              }}
-              className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${
-                viewMode === mode
-                  ? "bg-white text-[color:var(--color-primary)]"
-                  : "bg-white/20 text-white"
-              }`}
+              onClick={() => router.push("/ayuda")}
+              className="w-8 h-8 rounded-xl flex items-center justify-center active:opacity-70 transition-opacity glass-btn"
             >
-              {mode === "grupos"
-                ? "🔤 Grupos"
-                : mode === "fechas"
-                  ? "📅 Fechas"
-                  : "🔍 Buscar"}
+              <HelpCircle className="glass-btn" width={18} height={18} />
             </button>
-          ))}
+          </div>
         </div>
       </div>
 
-      {/* Search bar */}
-      {viewMode === "buscar" && (
-        <div className="px-4 py-3 bg-surface border-b border-soft sticky top-0 z-20">
-          <div className="relative">
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--color-muted)]"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-            <input
-              id="search-input"
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscá un equipo... ej: Argentina"
-              className="w-full bg-surface-2 rounded-xl pl-9 pr-9 py-3 text-sm text-[color:var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[#003DA5]"
-              autoComplete="off"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--color-muted)] text-lg leading-none"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-          {searchQuery && (
-            <p className="text-xs text-[color:var(--color-muted)] mt-1.5 pl-1">
-              {searchResults.length} partido
-              {searchResults.length !== 1 ? "s" : ""} encontrado
-              {searchResults.length !== 1 ? "s" : ""}
-            </p>
-          )}
-        </div>
-      )}
+      <div className="px-4 relative z-10 space-y-4">
 
-      {/* Group tabs */}
-      {viewMode === "grupos" && (
-        <div className="bg-surface border-b border-soft sticky top-0 z-20">
+        {/* ── NO GRUPO ────────────────────────────────────────────────────── */}
+        {groups.length === 0 && (
           <div
-            className="overflow-x-auto flex px-4 py-2 gap-1"
-            style={{ scrollbarWidth: "none" }}
+            className="card-white rounded-2xl p-5 text-center"
+            style={{
+              border: "1px solid var(--color-gray-200, #e9eaeb)",
+              boxShadow: "0 1px 3px rgba(10,13,18,0.1)",
+            }}
           >
-            {GROUPS.map((g) => (
-              <button
-                key={g}
-                onClick={() => setActiveTab(g)}
-                className={`flex-shrink-0 w-9 h-9 rounded-xl font-bold text-sm transition-all active:scale-90 ${
-                  activeTab === g
-                    ? "bg-[#003DA5] text-white"
-                    : "bg-surface-2 text-[color:var(--color-muted)]"
-                }`}
-              >
-                {g}
-              </button>
-            ))}
+            <div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3"
+              style={{ background: "var(--color-gray-100, #f5f5f5)" }}
+            >
+              <Trophy01 width={22} height={22} style={{ color: "var(--color-gray-400, #a4a7ae)" }} />
+            </div>
+            <p
+              className="font-bold text-sm mb-1"
+              style={{ color: "var(--color-gray-900, #181d27)" }}
+            >
+              Necesitás un grupo para predecir
+            </p>
+            <p
+              className="text-xs mb-4"
+              style={{ color: "var(--color-gray-500, #717680)" }}
+            >
+              Las predicciones se guardan dentro de un grupo.
+            </p>
+            <button
+              onClick={() => router.push("/grupos")}
+              className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white active:scale-95 transition-transform"
+              style={{ background: "var(--color-brand-600, #003da5)" }}
+            >
+              Crear o unirme a un grupo <ChevronRight width={14} height={14} />
+            </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Content */}
-      <div className="px-4 py-4 space-y-3">
-        {viewMode === "grupos" &&
-          matches
-            .filter((m) => m.group_name === activeTab)
-            .map((match) => (
-              <MatchCard key={match.id} {...matchCardProps(match)} />
-            ))}
-
-        {viewMode === "fechas" &&
-          Object.entries(matchesByDate).map(([dateKey, dayMatches]) => (
-            <div key={dateKey}>
-              <div className="flex items-center gap-2 mb-3 mt-2">
-                <div className="h-px flex-1 bg-[color:var(--color-border)]" />
-                <span className="text-xs font-bold text-[color:var(--color-muted)] uppercase tracking-wide px-1">
-                  {format(parseISO(dateKey + "T12:00:00"), "EEEE d 'de' MMMM", {
-                    locale: es,
-                  })}
-                </span>
-                <div className="h-px flex-1 bg-[color:var(--color-border)]" />
+        {groups.length > 0 && (
+          <>
+            {/* ── SELECTOR DE GRUPO ──────────────────────────────────────── */}
+            {groups.length > 1 && (
+              <div
+                className="card-white rounded-2xl overflow-hidden"
+                style={{
+                  border: "1px solid var(--color-gray-200, #e9eaeb)",
+                  boxShadow: "0 1px 3px rgba(10,13,18,0.1)",
+                }}
+              >
+                <div
+                  className="px-4 py-2.5 flex items-center gap-2"
+                  style={{ borderBottom: "1px solid var(--color-gray-100, #f5f5f5)" }}
+                >
+                  <span
+                    className="text-xs font-semibold uppercase tracking-wider"
+                    style={{ color: "var(--color-gray-500, #717680)" }}
+                  >
+                    Jugando en
+                  </span>
+                </div>
+                <div className="px-3 py-2.5 flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+                  {groups.map((g) => (
+                    <button
+                      key={g.id}
+                      onClick={() => setSelectedGroup(g.id)}
+                      className="flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                      style={
+                        selectedGroup === g.id
+                          ? { background: "var(--color-brand-600, #003da5)", color: "white" }
+                          : {
+                              background: "var(--color-gray-100, #f5f5f5)",
+                              color: "var(--color-gray-600, #535862)",
+                            }
+                      }
+                    >
+                      {g.name}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="space-y-3">
-                {dayMatches.map((match) => (
-                  <MatchCard
-                    key={match.id}
-                    {...matchCardProps(match)}
-                    showGroup
+            )}
+
+            {/* ── PROGRESO TOTAL ─────────────────────────────────────────── */}
+            <div
+              className="card-white rounded-2xl overflow-hidden"
+              style={{
+                border: "1px solid var(--color-gray-200, #e9eaeb)",
+                boxShadow: "0 1px 3px rgba(10,13,18,0.1)",
+              }}
+            >
+              {/* Header row */}
+              <div
+                className="px-4 py-3 flex items-center justify-between"
+                style={{ borderBottom: "1px solid var(--color-gray-100, #f5f5f5)" }}
+              >
+                <div className="flex items-center gap-2">
+                  <CheckDone01
+                    width={14}
+                    height={14}
+                    style={{ color: "var(--color-gray-400, #a4a7ae)" }}
                   />
-                ))}
+                  <span
+                    className="text-xs font-semibold uppercase tracking-wider"
+                    style={{ color: "var(--color-gray-500, #717680)" }}
+                  >
+                    Tu progreso
+                  </span>
+                </div>
+                <span
+                  className="text-xs font-bold tabular-nums"
+                  style={{ color: "var(--color-gray-900, #181d27)" }}
+                >
+                  {totalDone}/{totalMatches}
+                </span>
+              </div>
+
+              {/* Overall progress bar */}
+              <div className="px-4 pt-3 pb-2">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span
+                    className="text-xs font-medium"
+                    style={{ color: "var(--color-gray-500, #717680)" }}
+                  >
+                    {totalDone === 0
+                      ? "¡Empezá a predecir!"
+                      : totalDone === totalMatches
+                        ? "¡Completaste todo! 🎉"
+                        : `Faltan ${totalMatches - totalDone} partidos`}
+                  </span>
+                  <span
+                    className="text-xs font-bold"
+                    style={{ color: overallPct === 100 ? "#16a34a" : "var(--color-brand-600, #003da5)" }}
+                  >
+                    {overallPct}%
+                  </span>
+                </div>
+                <div
+                  className="h-2 rounded-full overflow-hidden"
+                  style={{ background: "var(--color-gray-100, #f5f5f5)" }}
+                >
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${overallPct}%`,
+                      background:
+                        overallPct === 100
+                          ? "linear-gradient(90deg, #16a34a, #22c55e)"
+                          : "linear-gradient(90deg, #2a7ca8, #4a9fc0)",
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Per-group mini bars */}
+              <div className="px-4 pb-3 pt-1">
+                <div className="grid grid-cols-6 gap-1.5">
+                  {groupProgress.map(({ group, total, done, pct }) => (
+                    <button
+                      key={group}
+                      onClick={() => {
+                        setViewMode("grupos");
+                        setActiveTab(group);
+                        // scroll to content
+                        setTimeout(() => {
+                          document.getElementById("match-list")?.scrollIntoView({ behavior: "smooth" });
+                        }, 50);
+                      }}
+                      className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
+                    >
+                      <div
+                        className="w-full h-1.5 rounded-full overflow-hidden"
+                        style={{ background: "var(--color-gray-100, #f5f5f5)" }}
+                      >
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${pct}%`,
+                            background:
+                              pct === 100
+                                ? "#16a34a"
+                                : pct > 0
+                                  ? "#2a7ca8"
+                                  : "transparent",
+                          }}
+                        />
+                      </div>
+                      <span
+                        className="text-[9px] font-bold"
+                        style={{
+                          color:
+                            pct === 100
+                              ? "#16a34a"
+                              : pct > 0
+                                ? "var(--color-brand-600, #003da5)"
+                                : "var(--color-gray-400, #a4a7ae)",
+                        }}
+                      >
+                        {group}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          ))}
 
-        {viewMode === "buscar" && !searchQuery && (
-          <div className="text-center py-12">
-            <span className="text-5xl block mb-3">🔍</span>
-            <p className="text-[color:var(--color-muted)] text-sm mb-4">
-              Escribí el nombre de un equipo
-            </p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {[
-                "Argentina",
-                "Brasil",
-                "Francia",
-                "España",
-                "Alemania",
-                "México",
-                "Inglaterra",
-                "Portugal",
-              ].map((team) => (
-                <button
-                  key={team}
-                  onClick={() => setSearchQuery(team)}
-                  className="bg-surface border border-soft text-[color:var(--color-text-2)] text-xs px-3 py-1.5 rounded-full active:scale-95 transition-transform"
+            {/* ── URGENTES: CIERRA EN < 24H ──────────────────────────────── */}
+            {urgentMatches.length > 0 && (
+              <div
+                className="card-white rounded-2xl overflow-hidden"
+                style={{
+                  border: "1px solid rgba(239,68,68,0.25)",
+                  boxShadow: "0 1px 8px rgba(239,68,68,0.08)",
+                }}
+              >
+                <div
+                  className="px-4 py-2.5 flex items-center gap-2"
+                  style={{ borderBottom: "1px solid rgba(239,68,68,0.12)" }}
                 >
-                  {team}
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                  <AlertCircle
+                    width={13}
+                    height={13}
+                    style={{ color: "#ef4444", flexShrink: 0 }}
+                  />
+                  <span className="text-xs font-bold tracking-wide" style={{ color: "#ef4444" }}>
+                    Cerrán pronto — completá estas primero
+                  </span>
+                </div>
+                <div className="divide-y" style={{ borderColor: "rgba(239,68,68,0.08)" }}>
+                  {urgentMatches.map((match, idx) => {
+                    const pred = predictions[match.id];
+                    const hasPred = pred?.saved;
+                    return (
+                      <button
+                        key={match.id}
+                        onClick={() => {
+                          setViewMode("grupos");
+                          setActiveTab(match.group_name ?? "A");
+                          setTimeout(() => {
+                            document.getElementById(`match-${match.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+                          }, 150);
+                        }}
+                        className="w-full px-4 py-3 flex items-center gap-3 active:opacity-75 transition-opacity text-left"
+                        style={idx < urgentMatches.length - 1 ? { borderBottom: "1px solid rgba(239,68,68,0.08)" } : {}}
+                      >
+                        {/* Flags */}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <span style={{ fontSize: 18 }}>{match.home_flag}</span>
+                          <span
+                            className="text-[10px] font-bold"
+                            style={{ color: "var(--color-gray-400, #a4a7ae)" }}
+                          >
+                            vs
+                          </span>
+                          <span style={{ fontSize: 18 }}>{match.away_flag}</span>
+                        </div>
+
+                        {/* Teams */}
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className="text-xs font-semibold truncate"
+                            style={{ color: "var(--color-gray-900, #181d27)" }}
+                          >
+                            {match.home_team} vs {match.away_team}
+                          </p>
+                          <p
+                            className="text-[10px] mt-0.5"
+                            style={{ color: "var(--color-gray-500, #717680)" }}
+                          >
+                            Grupo {match.group_name} ·{" "}
+                            {format(parseISO(match.match_date), "d MMM · HH'h'mm", { locale: es })}
+                          </p>
+                        </div>
+
+                        {/* State */}
+                        <div className="flex-shrink-0">
+                          {hasPred ? (
+                            <span
+                              className="text-[10px] font-bold px-2 py-1 rounded-lg"
+                              style={{ background: "rgba(22,163,74,0.1)", color: "#16a34a" }}
+                            >
+                              ✓ {pred.home}-{pred.away}
+                            </span>
+                          ) : (
+                            <UrgentCountdown match={match} />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── VIEW MODE TABS ──────────────────────────────────────────── */}
+            <div
+              className="card-white rounded-2xl p-1.5 flex gap-1.5"
+              style={{
+                border: "1px solid var(--color-gray-200, #e9eaeb)",
+                boxShadow: "0 1px 3px rgba(10,13,18,0.1)",
+              }}
+            >
+              {(["grupos", "fechas", "buscar"] as ViewMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => {
+                    setViewMode(mode);
+                    if (mode === "buscar")
+                      setTimeout(() => document.getElementById("search-input")?.focus(), 100);
+                  }}
+                  className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                  style={
+                    viewMode === mode
+                      ? {
+                          background: "var(--color-brand-600, #003da5)",
+                          color: "white",
+                          boxShadow: "0 2px 6px rgba(0,61,165,0.25)",
+                        }
+                      : {
+                          color: "var(--color-gray-500, #717680)",
+                        }
+                  }
+                >
+                  <span className="flex items-center justify-center gap-1.5">
+                {mode === "grupos" ? (
+                  <><List width={13} height={13} /> Grupos</>
+                ) : mode === "fechas" ? (
+                  <><Calendar width={13} height={13} /> Fechas</>
+                ) : (
+                  <><SearchLg width={13} height={13} /> Buscar</>
+                )}
+              </span>
                 </button>
               ))}
             </div>
-          </div>
-        )}
 
-        {viewMode === "buscar" && searchQuery && searchResults.length === 0 && (
-          <div className="text-center py-12">
-            <span className="text-4xl block mb-3">😕</span>
-            <p className="text-[color:var(--color-muted)] text-sm">
-              No encontramos "{searchQuery}"
-            </p>
-          </div>
-        )}
+            {/* ── SEARCH BAR ─────────────────────────────────────────────── */}
+            {viewMode === "buscar" && (
+              <div
+                className="card-white rounded-2xl overflow-hidden"
+                style={{
+                  border: "1px solid var(--color-gray-200, #e9eaeb)",
+                  boxShadow: "0 1px 3px rgba(10,13,18,0.1)",
+                }}
+              >
+                <div className="px-4 py-3">
+                  <div className="relative">
+                    <svg
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                      style={{ color: "var(--color-gray-400, #a4a7ae)" }}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                    <input
+                      id="search-input"
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Buscá un equipo... ej: Argentina"
+                      className="w-full rounded-xl pl-9 pr-9 py-2.5 text-sm transition-colors focus:outline-none"
+                      style={{
+                        background: "var(--color-gray-50, #fafafa)",
+                        border: "1px solid var(--color-gray-200, #e9eaeb)",
+                        color: "var(--color-gray-900, #181d27)",
+                      }}
+                      autoComplete="off"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-lg leading-none"
+                        style={{ color: "var(--color-gray-400, #a4a7ae)" }}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  {searchQuery && (
+                    <p
+                      className="text-xs mt-1.5 pl-1"
+                      style={{ color: "var(--color-gray-400, #a4a7ae)" }}
+                    >
+                      {searchResults.length} partido{searchResults.length !== 1 ? "s" : ""} encontrado{searchResults.length !== 1 ? "s" : ""}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
-        {viewMode === "buscar" &&
-          searchResults.map((match) => (
-            <MatchCard key={match.id} {...matchCardProps(match)} showGroup />
-          ))}
+            {/* ── GROUP LETTER TABS ───────────────────────────────────────── */}
+            {viewMode === "grupos" && (
+              <div
+                className="card-white rounded-2xl overflow-hidden"
+                style={{
+                  border: "1px solid var(--color-gray-200, #e9eaeb)",
+                  boxShadow: "0 1px 3px rgba(10,13,18,0.1)",
+                }}
+              >
+                {/* Group progress label */}
+                <div
+                  className="px-4 py-2 flex items-center justify-between"
+                  style={{ borderBottom: "1px solid var(--color-gray-100, #f5f5f5)" }}
+                >
+                  <span
+                    className="text-xs font-semibold uppercase tracking-wider"
+                    style={{ color: "var(--color-gray-500, #717680)" }}
+                  >
+                    Grupo {activeTab}
+                  </span>
+                  {(() => {
+                    const gp = groupProgress.find((g) => g.group === activeTab);
+                    if (!gp) return null;
+                    return (
+                      <span
+                        className="text-xs font-bold flex items-center gap-1"
+                        style={{
+                          color:
+                            gp.pct === 100
+                              ? "#16a34a"
+                              : gp.pct > 0
+                                ? "var(--color-brand-600, #003da5)"
+                                : "var(--color-gray-400, #a4a7ae)",
+                        }}
+                      >
+                        {gp.pct === 100 && <Check width={12} height={12} />}
+                        {gp.done}/{gp.total}
+                      </span>
+                    );
+                  })()}
+                </div>
+
+                {/* Letter pills */}
+                <div
+                  className="flex px-3 py-2.5 gap-1.5 overflow-x-auto"
+                  style={{ scrollbarWidth: "none" }}
+                >
+                  {GROUPS.map((g) => {
+                    const gp = groupProgress.find((gp) => gp.group === g);
+                    const isComplete = gp?.pct === 100;
+                    const isActive = activeTab === g;
+                    return (
+                      <button
+                        key={g}
+                        onClick={() => setActiveTab(g)}
+                        className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-90 transition-all"
+                      >
+                        <div
+                          className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm"
+                          style={
+                            isActive
+                              ? {
+                                  background: "var(--color-brand-600, #003da5)",
+                                  color: "white",
+                                }
+                              : isComplete
+                                ? {
+                                    background: "rgba(22,163,74,0.1)",
+                                    color: "#16a34a",
+                                    border: "1px solid rgba(22,163,74,0.2)",
+                                  }
+                                : {
+                                    background: "var(--color-gray-100, #f5f5f5)",
+                                    color: "var(--color-gray-600, #535862)",
+                                  }
+                          }
+                        >
+                          {isComplete && !isActive ? <Check width={14} height={14} /> : g}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── MATCH LIST ──────────────────────────────────────────────── */}
+            <div id="match-list" className="space-y-3">
+              {viewMode === "grupos" &&
+                matches
+                  .filter((m) => m.group_name === activeTab)
+                  .map((match) => (
+                    <div key={match.id} id={`match-${match.id}`}>
+                      <MatchCard {...matchCardProps(match)} />
+                    </div>
+                  ))}
+
+              {viewMode === "fechas" &&
+                Object.entries(matchesByDate).map(([dateKey, dayMatches]) => (
+                  <div key={dateKey}>
+                    <div className="flex items-center gap-2 mb-3 mt-1">
+                      <div
+                        className="h-px flex-1"
+                        style={{ background: "var(--color-gray-200, #e9eaeb)" }}
+                      />
+                      <span
+                        className="text-xs font-bold uppercase tracking-wide px-1"
+                        style={{ color: "var(--color-gray-500, #717680)" }}
+                      >
+                        {format(parseISO(dateKey + "T12:00:00"), "EEEE d 'de' MMMM", { locale: es })}
+                      </span>
+                      <div
+                        className="h-px flex-1"
+                        style={{ background: "var(--color-gray-200, #e9eaeb)" }}
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      {dayMatches.map((match) => (
+                        <div key={match.id} id={`match-${match.id}`}>
+                          <MatchCard {...matchCardProps(match)} showGroup />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+              {viewMode === "buscar" && !searchQuery && (
+                <div className="text-center py-10">
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3"
+                    style={{ background: "var(--color-gray-100, #f5f5f5)" }}
+                  >
+                    <SearchLg width={22} height={22} style={{ color: "var(--color-gray-400, #a4a7ae)" }} />
+                  </div>
+                  <p
+                    className="text-sm mb-4"
+                    style={{ color: "var(--color-gray-500, #717680)" }}
+                  >
+                    Escribí el nombre de un equipo
+                  </p>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {["Argentina", "Brasil", "Francia", "España", "Alemania", "México", "Inglaterra", "Portugal"].map(
+                      (team) => (
+                        <button
+                          key={team}
+                          onClick={() => setSearchQuery(team)}
+                          className="text-xs px-3 py-1.5 rounded-full active:scale-95 transition-transform"
+                          style={{
+                            background: "var(--color-gray-100, #f5f5f5)",
+                            color: "var(--color-gray-700, #414651)",
+                            border: "1px solid var(--color-gray-200, #e9eaeb)",
+                          }}
+                        >
+                          {team}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {viewMode === "buscar" && searchQuery && searchResults.length === 0 && (
+                <div className="text-center py-12">
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3"
+                    style={{ background: "var(--color-gray-100, #f5f5f5)" }}
+                  >
+                    <XCircle width={22} height={22} style={{ color: "var(--color-gray-400, #a4a7ae)" }} />
+                  </div>
+                  <p style={{ color: "var(--color-gray-500, #717680)" }} className="text-sm">
+                    No encontramos &ldquo;{searchQuery}&rdquo;
+                  </p>
+                </div>
+              )}
+
+              {viewMode === "buscar" &&
+                searchResults.map((match) => (
+                  <div key={match.id} id={`match-${match.id}`}>
+                    <MatchCard {...matchCardProps(match)} showGroup />
+                  </div>
+                ))}
+            </div>
+          </>
+        )}
       </div>
 
       <BottomNav active="predicciones" />
@@ -472,7 +970,9 @@ function PrediccionesContent() {
   );
 }
 
-// ===================== MATCH CARD =====================
+// ═══════════════════════════════════════════════════════════════════
+// MATCH CARD — redesigned to match dashboard/perfil card style
+// ═══════════════════════════════════════════════════════════════════
 
 type MatchCardProps = {
   match: Match;
@@ -506,119 +1006,193 @@ function MatchCard({
     !prediction.saved &&
     prediction.home !== "" &&
     prediction.away !== "";
+
   const matchDate = parseISO(match.match_date);
   const hasTeammates = status === "finished" && teammatesPreds.length > 0;
-
-  const pointsBadge = () => {
-    if (status !== "finished") return null;
-    if (!prediction)
-      return (
-        <span className="text-xs bg-surface-2 text-[color:var(--color-muted)] px-2 py-0.5 rounded-full">
-          Sin pred.
-        </span>
-      );
-    if (prediction.points === 3)
-      return (
-        <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-bold">
-          +3 pts 🎯
-        </span>
-      );
-    if (prediction.points === 1)
-      return (
-        <span className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold">
-          +1 pt
-        </span>
-      );
-    return (
-      <span className="text-xs bg-surface-2 text-[color:var(--color-muted)] px-2 py-0.5 rounded-full">
-        0 pts
-      </span>
-    );
-  };
-
-  const getPredBadge = (pts: number | null) => {
-    if (pts === 3) return "🎯";
-    if (pts === 1) return "✅";
-    if (pts === 0) return "❌";
-    return "·";
-  };
 
   const isEditing =
     (prediction?.home !== undefined || prediction?.away !== undefined) &&
     !prediction?.saved &&
     status === "open";
 
+  // ── Urgency: is this match closing in < 24h? ──
+  const hoursToKickoff = (parseISO(match.match_date).getTime() - Date.now()) / 3600000;
+  const isUrgent = status === "open" && hoursToKickoff >= 0 && hoursToKickoff < 24 && !prediction?.saved;
+
+  const pointsInfo = (() => {
+    if (status !== "finished" || !prediction) return null;
+    if (prediction.points === 3) return { label: "+3 pts", icon: <Target01 width={11} height={11} />, bg: "rgba(22,163,74,0.12)", color: "#16a34a" };
+    if (prediction.points === 1) return { label: "+1 pt", icon: <CheckCircle width={11} height={11} />, bg: "rgba(245,158,11,0.12)", color: "#d97706" };
+    if (prediction.points === 0) return { label: "0 pts", icon: <XCircle width={11} height={11} />, bg: "var(--color-gray-100, #f5f5f5)", color: "var(--color-gray-400, #a4a7ae)" };
+    return null;
+  })();
+
+  const getPredBadgeIcon = (pts: number | null) => {
+    if (pts === 3) return <Target01 width={13} height={13} style={{ color: "#16a34a", flexShrink: 0 }} />;
+    if (pts === 1) return <CheckCircle width={13} height={13} style={{ color: "#d97706", flexShrink: 0 }} />;
+    if (pts === 0) return <XCircle width={13} height={13} style={{ color: "var(--color-gray-400, #a4a7ae)", flexShrink: 0 }} />;
+    return null;
+  };
+
   return (
     <div
-      className={`bg-surface rounded-3xl overflow-hidden shadow-sm transition-all duration-200
-        ${status === "finished" ? "opacity-90" : ""}
-        ${isEditing ? "ring-2 ring-[#003DA5] shadow-md shadow-[#003DA5]/20" : ""}
-      `}
+      id={`match-${match.id}`}
+      className="card-white rounded-2xl overflow-hidden transition-all duration-200"
+      style={{
+        border: isUrgent
+          ? "1px solid rgba(239,68,68,0.3)"
+          : isEditing
+            ? "1px solid rgba(42,124,168,0.4)"
+            : "1px solid var(--color-gray-200, #e9eaeb)",
+        boxShadow: isUrgent
+          ? "0 2px 12px rgba(239,68,68,0.1)"
+          : isEditing
+            ? "0 2px 12px rgba(42,124,168,0.12)"
+            : "0 1px 3px rgba(10,13,18,0.08)",
+      }}
     >
-      {/* Match header */}
-      <div className="px-4 py-2.5 flex items-center justify-between bg-surface-2 border-b border-soft">
-        <div className="flex items-center gap-2 text-xs text-[color:var(--color-muted)]">
+      {/* ── Card header bar ────────────────────────────────────────────── */}
+      <div
+        className="px-4 py-2.5 flex items-center justify-between"
+        style={{ borderBottom: "1px solid var(--color-gray-100, #f5f5f5)" }}
+      >
+        <div className="flex items-center gap-2">
           {showGroup && (
-            <span className="bg-[#003DA5] text-white px-1.5 py-0.5 rounded text-xs font-bold">
+            <span
+              className="text-[10px] font-bold px-1.5 py-0.5 rounded-md text-white"
+              style={{ background: "var(--color-brand-600, #003da5)" }}
+            >
               G{match.group_name}
             </span>
           )}
-          <span>📍 {match.city}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {status === "finished" && pointsBadge()}
-          {status === "locked" && (
-            <span className="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full flex items-center gap-1">
-              🔒 Bloqueado
+          {isUrgent && (
+            <span className="text-[10px] font-bold flex items-center gap-1" style={{ color: "#ef4444" }}>
+              <AlertCircle width={10} height={10} /> Urgente
             </span>
           )}
-          <span className="text-xs text-[color:var(--color-muted)]">
+          {status === "locked" && !isUrgent && (
+            <span
+              className="text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1"
+              style={{ background: "rgba(245,158,11,0.1)", color: "#d97706" }}
+            >
+              <Lock01 width={10} height={10} /> Bloqueado
+            </span>
+          )}
+          {status === "finished" && pointsInfo && (
+            <span
+              className="text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1"
+              style={{ background: pointsInfo.bg, color: pointsInfo.color }}
+            >
+              {pointsInfo.icon}{pointsInfo.label}
+            </span>
+          )}
+          {status === "finished" && !prediction && (
+            <span
+              className="text-[10px] font-medium px-1.5 py-0.5 rounded-md"
+              style={{
+                background: "var(--color-gray-100, #f5f5f5)",
+                color: "var(--color-gray-500, #717680)",
+              }}
+            >
+              Sin predicción
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {isUrgent && <UrgentCountdown match={match} />}
+          <span
+            className="text-[11px] font-medium"
+            style={{ color: "var(--color-gray-400, #a4a7ae)" }}
+          >
             {format(matchDate, "d MMM · HH'h'mm", { locale: es })}
           </span>
         </div>
       </div>
 
-      {/* Teams & scores */}
-      <div className="px-4 py-4">
+      {/* ── Teams + score/inputs ────────────────────────────────────────── */}
+      <div className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex-1 text-center">
-            <span className="text-3xl block mb-1">{match.home_flag}</span>
-            <p className="text-xs font-semibold text-[color:var(--color-text-2)] leading-tight">
+          {/* Home team */}
+          <div className="flex-1 flex flex-col items-center gap-1 min-w-0">
+            <span style={{ fontSize: 26 }}>{match.home_flag}</span>
+            <p
+              className="text-[11px] font-semibold text-center leading-tight truncate w-full"
+              style={{ color: "var(--color-gray-700, #414651)" }}
+            >
               {match.home_team}
             </p>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Score / inputs */}
+          <div className="flex flex-col items-center gap-1 flex-shrink-0">
             {status === "finished" ? (
-              <div className="text-center">
-                <div className="flex items-center gap-2 mb-1">
+              <>
+                <div className="flex items-center gap-1.5">
                   <span
-                    className="font-display text-3xl text-[color:var(--color-primary)]"
-                    style={{ fontFamily: "Bebas Neue, sans-serif" }}
+                    className="tabular-nums"
+                    style={{
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: 28,
+                      fontWeight: 800,
+                      color: "var(--color-gray-900, #181d27)",
+                      lineHeight: 1,
+                    }}
                   >
-                    {match.home_score ?? "-"}
+                    {match.home_score ?? "–"}
                   </span>
-                  <span className="text-[color:var(--color-border)] font-bold">
+                  <span
+                    style={{
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: 18,
+                      fontWeight: 300,
+                      color: "var(--color-gray-300, #d5d7da)",
+                      lineHeight: 1,
+                    }}
+                  >
                     :
                   </span>
                   <span
-                    className="font-display text-3xl text-[color:var(--color-primary)]"
-                    style={{ fontFamily: "Bebas Neue, sans-serif" }}
+                    className="tabular-nums"
+                    style={{
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: 28,
+                      fontWeight: 800,
+                      color: "var(--color-gray-900, #181d27)",
+                      lineHeight: 1,
+                    }}
                   >
-                    {match.away_score ?? "-"}
+                    {match.away_score ?? "–"}
                   </span>
                 </div>
                 {prediction && (
-                  <p className="text-xs text-[color:var(--color-muted)]">
-                    Tu pred:{" "}
-                    <strong>
-                      {prediction.home}-{prediction.away}
-                    </strong>
-                  </p>
+                  <div
+                    className="mt-1 flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
+                    style={{
+                      background: "var(--color-brand-50, #eff4ff)",
+                      border: "1px solid var(--color-brand-100, #d1e0ff)",
+                    }}
+                  >
+                    <span
+                      className="text-[10px] font-semibold uppercase tracking-wide"
+                      style={{ color: "var(--color-brand-500, #1a55bd)" }}
+                    >
+                      Tu pred
+                    </span>
+                    <span
+                      className="text-xs font-bold tabular-nums"
+                      style={{
+                        fontFamily: "Inter, sans-serif",
+                        color: "var(--color-brand-700, #003da5)",
+                        letterSpacing: "-0.02em",
+                      }}
+                    >
+                      {prediction.home} – {prediction.away}
+                    </span>
+                  </div>
                 )}
-              </div>
+              </>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <input
                   type="number"
                   min={0}
@@ -630,7 +1204,15 @@ function MatchCard({
                   className={`score-input ${!prediction?.home && prediction?.home !== "0" ? "score-input-empty" : ""}`}
                   placeholder="?"
                 />
-                <span className="text-[color:var(--color-border)] font-bold text-xl">
+                <span
+                  style={{
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 20,
+                    fontWeight: 300,
+                    color: "var(--color-gray-300, #d5d7da)",
+                    lineHeight: 1,
+                  }}
+                >
                   :
                 </span>
                 <input
@@ -648,9 +1230,13 @@ function MatchCard({
             )}
           </div>
 
-          <div className="flex-1 text-center">
-            <span className="text-3xl block mb-1">{match.away_flag}</span>
-            <p className="text-xs font-semibold text-[color:var(--color-text-2)] leading-tight">
+          {/* Away team */}
+          <div className="flex-1 flex flex-col items-center gap-1 min-w-0">
+            <span style={{ fontSize: 26 }}>{match.away_flag}</span>
+            <p
+              className="text-[11px] font-semibold text-center leading-tight truncate w-full"
+              style={{ color: "var(--color-gray-700, #414651)" }}
+            >
               {match.away_team}
             </p>
           </div>
@@ -660,41 +1246,68 @@ function MatchCard({
         {status === "open" && selectedGroup && (
           <div className="mt-3 flex items-center justify-center">
             {saving ? (
-              <span className="text-xs text-[color:var(--color-muted)] flex items-center gap-1">
-                <span className="w-3 h-3 border-2 border-[color:var(--color-muted)] border-t-transparent rounded-full animate-spin" />
+              <span
+                className="text-xs flex items-center gap-1.5"
+                style={{ color: "var(--color-gray-500, #717680)" }}
+              >
+                <span
+                  className="w-3 h-3 border-2 border-t-transparent rounded-full animate-spin"
+                  style={{ borderColor: "#2a7ca8", borderTopColor: "transparent" }}
+                />
                 Guardando...
               </span>
             ) : prediction?.saved ? (
-              <span className="text-xs text-green-500 flex items-center gap-1">
-                ✅ Guardado
+              <span className="text-xs flex items-center gap-1.5 font-semibold" style={{ color: "#16a34a" }}>
+                <CheckCircle width={13} height={13} /> Guardado
               </span>
             ) : hasUnsaved ? (
               <button
                 onClick={() => onSave(match)}
-                className="text-xs bg-[#003DA5] text-white px-4 py-1.5 rounded-full font-semibold active:scale-95"
+                className="text-xs text-white px-4 py-1.5 rounded-full font-semibold active:scale-95 transition-transform"
+                style={{
+                  background: "linear-gradient(90deg, #2a7ca8, #4a9fc0)",
+                  boxShadow: "0 2px 6px rgba(42,124,168,0.3)",
+                }}
               >
                 Guardar predicción
               </button>
             ) : (
-              <span className="text-xs text-[color:var(--color-muted-2)]">
-                Ingresá tu predicción
-              </span>
+              // Empty state — no prediction yet
+              <div
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl"
+                style={{
+                  background: "var(--color-brand-50, #eff4ff)",
+                  border: "1px dashed var(--color-brand-200, #9ab7ee)",
+                }}
+              >
+                <span
+                  className="text-[11px] font-semibold"
+                  style={{ color: "var(--color-brand-600, #003da5)" }}
+                >
+                  Ingresá tu resultado
+                </span>
+                <ChevronRight
+                  width={12}
+                  height={12}
+                  style={{ color: "var(--color-brand-400, #4a77d9)", flexShrink: 0 }}
+                />
+              </div>
             )}
           </div>
         )}
 
-        {/* Ver predicciones de compañeros — solo si el partido terminó */}
+        {/* Expand teammates button */}
         {hasTeammates && (
           <button
             onClick={onToggleExpand}
-            className="w-full mt-3 flex items-center justify-center gap-1.5 text-xs text-[color:var(--color-primary)] font-semibold py-2 rounded-xl bg-surface-2 active:scale-95 transition-transform"
+            className="w-full mt-3 flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-xl active:scale-95 transition-transform"
+            style={{
+              background: "var(--color-gray-50, #fafafa)",
+              border: "1px solid var(--color-gray-100, #f5f5f5)",
+              color: "var(--color-brand-600, #003da5)",
+            }}
           >
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -702,83 +1315,91 @@ function MatchCard({
                 d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
               />
             </svg>
-            {expanded
-              ? "Ocultar"
-              : `Ver predicciones del grupo (${teammatesPreds.length})`}
+            {expanded ? "Ocultar" : `Ver predicciones del grupo (${teammatesPreds.length})`}
             <svg
               className={`w-3.5 h-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
         )}
       </div>
 
-      {/* Teammates predictions panel */}
+      {/* ── Teammates panel ─────────────────────────────────────────────── */}
       {expanded && hasTeammates && (
-        <div className="border-t border-soft bg-surface-2">
-          <div className="px-4 py-2 border-b border-soft">
-            <p className="text-xs font-bold text-[color:var(--color-muted)] tracking-wide">
-              PREDICCIONES DEL GRUPO
+        <div
+          style={{ borderTop: "1px solid var(--color-gray-100, #f5f5f5)" }}
+        >
+          <div
+            className="px-4 py-2"
+            style={{ borderBottom: "1px solid var(--color-gray-100, #f5f5f5)" }}
+          >
+            <p
+              className="text-[10px] font-bold uppercase tracking-wider"
+              style={{ color: "var(--color-gray-400, #a4a7ae)" }}
+            >
+              Predicciones del grupo
             </p>
           </div>
-          <div className="divide-y divide-soft">
+          <div>
             {teammatesPreds
               .sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
-              .map((t) => (
+              .map((t, idx) => (
                 <div
                   key={t.user_id}
-                  className="flex items-center gap-3 px-4 py-3"
+                  className="flex items-center gap-3 px-4 py-2.5"
+                  style={
+                    idx < teammatesPreds.length - 1
+                      ? { borderBottom: "1px solid var(--color-gray-50, #fafafa)" }
+                      : {}
+                  }
                 >
-                  {/* Avatar */}
                   <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
-                    style={{
-                      background: "linear-gradient(135deg, #003DA5, #1A5FBF)",
-                    }}
+                    className="w-7 h-7 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
+                    style={{ background: "linear-gradient(135deg, #003da5, #1a55bd)" }}
                   >
                     {t.avatar_url ? (
-                      <img
-                        src={t.avatar_url}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
+                      <img src={t.avatar_url} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-white font-bold text-xs">
                         {t.full_name[0]}
                       </span>
                     )}
                   </div>
-                  {/* Name */}
-                  <span className="flex-1 text-sm text-[color:var(--color-text-2)] font-semibold truncate">
+                  <span
+                    className="flex-1 text-xs font-semibold truncate"
+                    style={{ color: "var(--color-gray-700, #414651)" }}
+                  >
                     {t.full_name}
                   </span>
-                  {/* Prediction */}
                   <div className="flex items-center gap-2">
                     <span
-                      className="text-sm font-bold text-[color:var(--color-text)] tabular-nums"
-                      style={{ fontFamily: "Bebas Neue, sans-serif" }}
+                      className="text-sm font-bold tabular-nums"
+                      style={{
+                        fontFamily: "Inter, sans-serif",
+                        fontWeight: 700,
+                        color: "var(--color-gray-900, #181d27)",
+                      }}
                     >
                       {t.predicted_home_score} - {t.predicted_away_score}
                     </span>
-                    <span className="text-base">{getPredBadge(t.points)}</span>
+                    {getPredBadgeIcon(t.points)}
                     {t.points !== null && (
                       <span
-                        className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                        className="text-[10px] font-bold px-1.5 py-0.5 rounded-md"
+                        style={
                           t.points === 3
-                            ? "bg-[#003DA5] text-white"
+                            ? { background: "rgba(22,163,74,0.1)", color: "#16a34a" }
                             : t.points === 1
-                              ? "bg-amber-400 text-white"
-                              : "bg-surface-3 text-[color:var(--color-muted)]"
-                        }`}
+                              ? { background: "rgba(245,158,11,0.1)", color: "#d97706" }
+                              : {
+                                  background: "var(--color-gray-100, #f5f5f5)",
+                                  color: "var(--color-gray-400, #a4a7ae)",
+                                }
+                        }
                       >
                         {t.points > 0 ? `+${t.points}` : "0"}
                       </span>
@@ -791,14 +1412,18 @@ function MatchCard({
       )}
     </div>
   );
+
 }
 
 export default function PrediccionesPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-dvh bg-app flex items-center justify-center">
-          <div className="w-10 h-10 border-4 border-[#003DA5] border-t-transparent rounded-full animate-spin" />
+        <div className="min-h-dvh flex items-center justify-center page-gradient">
+          <div
+            className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin"
+            style={{ borderColor: "#1e6a94", borderTopColor: "transparent" }}
+          />
         </div>
       }
     >

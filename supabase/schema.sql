@@ -13,6 +13,7 @@ create table public.profiles (
   id uuid references auth.users on delete cascade primary key,
   email text not null,
   full_name text,
+  username text unique,
   avatar_url text,
   created_at timestamptz default now()
 );
@@ -230,6 +231,7 @@ create or replace view public.leaderboard as
 select
   gm.group_id,
   p.id as user_id,
+  p.username,
   p.full_name,
   p.avatar_url,
   coalesce(sum(pred.points), 0) as total_points,
@@ -240,7 +242,7 @@ select
 from public.group_members gm
 join public.profiles p on p.id = gm.user_id
 left join public.predictions pred on pred.user_id = gm.user_id and pred.group_id = gm.group_id
-group by gm.group_id, p.id, p.full_name, p.avatar_url
+group by gm.group_id, p.id, p.username, p.full_name, p.avatar_url
 order by total_points desc;
 
 -- RLS para la vista

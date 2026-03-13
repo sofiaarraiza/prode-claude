@@ -5,17 +5,27 @@ import { useRouter } from "next/navigation";
 import { supabase, type Profile, type Group, type Match } from "@/lib/supabase";
 import BottomNav from "@/components/layout/BottomNav";
 import ThemeToggle from "@/components/layout/ThemeToggle";
-import FlipClock from "@/components/FlipClock";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
+import {
+  Users01,
+  HelpCircle,
+  ArrowNarrowRight,
+  Trophy01,
+  ClipboardCheck,
+  ChevronRight,
+} from "@untitledui/icons";
 
 const WORLD_CUP_START = new Date("2026-06-11T19:00:00Z");
+const ARGENTINA_DEBUT = new Date("2026-06-15T01:00:00Z"); // 14 Jun 22:00 ART
 const MATCH_DURATION_MS = 2 * 60 * 60 * 1000;
+const TOTAL_MATCHES = 72;
 
 function useCountdown(target: Date) {
   const calc = () => {
     const diff = target.getTime() - Date.now();
-    if (diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0, started: true };
+    if (diff <= 0)
+      return { days: 0, hours: 0, minutes: 0, seconds: 0, started: true };
     return {
       days: Math.floor(diff / (1000 * 60 * 60 * 24)),
       hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
@@ -45,13 +55,32 @@ function getMinute(match: Match): number {
   return Math.min(90, Math.floor((Date.now() - start) / 60000));
 }
 
-// Avatar mini display
-function AvatarBubble({ avatarUrl, name, size = 44 }: { avatarUrl?: string | null; name: string; size?: number }) {
+function AvatarBubble({
+  avatarUrl,
+  name,
+  size = 44,
+}: {
+  avatarUrl?: string | null;
+  name: string;
+  size?: number;
+}) {
   if (!avatarUrl) {
     return (
-      <div className="rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-white/30"
-        style={{ width: size, height: size, background: "linear-gradient(135deg, #003DA5, #1A5FBF)" }}>
-        <span className="text-white font-bold" style={{ fontSize: size * 0.38 }}>{name[0]}</span>
+      <div
+        className="rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
+        style={{
+          width: size,
+          height: size,
+          border: "2px solid rgba(255,255,255,0.3)",
+          background: "linear-gradient(135deg, #003da5, #002d7a)",
+        }}
+      >
+        <span
+          className="text-white font-bold"
+          style={{ fontSize: size * 0.38 }}
+        >
+          {(name[0] ?? "?").toUpperCase()}
+        </span>
       </div>
     );
   }
@@ -59,19 +88,245 @@ function AvatarBubble({ avatarUrl, name, size = 44 }: { avatarUrl?: string | nul
     try {
       const cfg = JSON.parse(avatarUrl.slice(7));
       return (
-        <div className="rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-white/20"
-          style={{ width: size, height: size, background: cfg.color }}>
+        <div
+          className="rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
+          style={{
+            width: size,
+            height: size,
+            border: "2px solid rgba(255,255,255,0.2)",
+            background: cfg.color,
+          }}
+        >
           <span style={{ fontSize: size * 0.45 }}>{cfg.emoji}</span>
         </div>
       );
     } catch {}
   }
   return (
-    <div className="rounded-full overflow-hidden flex-shrink-0 border-2 border-white/30" style={{ width: size, height: size }}>
+    <div
+      className="rounded-full overflow-hidden flex-shrink-0"
+      style={{
+        width: size,
+        height: size,
+        border: "2px solid rgba(255,255,255,0.3)",
+      }}
+    >
       <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
     </div>
   );
 }
+
+// Mini countdown panel — used inside the dual-countdown card
+function MiniCountdown({
+  target,
+  label,
+  flag,
+  matchup,
+  accent,
+}: {
+  target: Date;
+  label: string;
+  flag: string;
+  matchup: string;
+  accent: string;
+}) {
+  const cd = useCountdown(target);
+  const units = [
+    { value: cd.days, label: "d", isSeconds: false },
+    { value: cd.hours, label: "h", isSeconds: false },
+    { value: cd.minutes, label: "m", isSeconds: false },
+    { value: cd.seconds, label: "s", isSeconds: true },
+  ];
+  return (
+    <div className="flex-1 flex flex-col px-3 py-3">
+      {/* Label */}
+      <div className="flex items-center gap-1.5 mb-2.5">
+        <span style={{ fontSize: 14 }}>{flag}</span>
+        <span
+          className="text-[10px] font-bold uppercase tracking-widest"
+          style={{
+            color: "var(--color-gray-500, #717680)",
+            letterSpacing: "0.1em",
+          }}
+        >
+          {label}
+        </span>
+      </div>
+      {/* Digits */}
+      <div className="flex gap-1.5 mb-2">
+        {units.map(({ value, label: unit, isSeconds }) => {
+          const str = String(value).padStart(2, "0");
+          return (
+            <div
+              key={unit}
+              className="flex-1 flex flex-col items-center gap-0.5"
+            >
+              <div
+                className="w-full rounded-lg flex items-center justify-center"
+                style={{
+                  background: "var(--color-gray-50, #fafafa)",
+                  border: `1px solid ${"var(--color-gray-100, #f5f5f5)"}`,
+                  height: 36,
+                  animation: isSeconds
+                    ? "secondPulse 1s ease-in-out infinite"
+                    : undefined,
+                }}
+              >
+                <span
+                  key={str}
+                  style={{
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 18,
+                    fontWeight: 800,
+                    color: accent,
+                    letterSpacing: "-0.01em",
+                    lineHeight: 1,
+                    animation: "digitPop 0.18s cubic-bezier(0.34,1.56,0.64,1)",
+                  }}
+                >
+                  {str}
+                </span>
+              </div>
+              <span
+                style={{
+                  fontSize: "8px",
+                  fontWeight: 600,
+                  color: "var(--color-gray-400, #a4a7ae)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                }}
+              >
+                {unit}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {/* Matchup footer */}
+      <span
+        className="text-[10px] font-medium leading-tight"
+        style={{ color: "var(--color-gray-500, #717680)" }}
+      >
+        {matchup}
+      </span>
+    </div>
+  );
+}
+
+// Dual countdown card
+function CountdownCard() {
+  const wc = useCountdown(WORLD_CUP_START);
+  const arg = useCountdown(ARGENTINA_DEBUT);
+  if (wc.started && arg.started) return null;
+  return (
+    <div
+      className="card-white rounded-2xl overflow-hidden"
+      style={{
+        border: "1px solid var(--color-gray-200, #e9eaeb)",
+        boxShadow: "0 1px 3px rgba(10,13,18,0.1)",
+      }}
+    >
+      <div className="flex">
+        {/* Mundial */}
+        {!wc.started && (
+          <MiniCountdown
+            target={WORLD_CUP_START}
+            label="Mundial · 11 Jun"
+            flag="⚽"
+            matchup="México vs Sudáfrica · Azteca"
+            accent="var(--color-brand-600, #003da5)"
+          />
+        )}
+
+        {/* Divisor */}
+        {!wc.started && !arg.started && (
+          <div
+            className="w-px my-3"
+            style={{ background: "var(--color-gray-100, #f5f5f5)" }}
+          />
+        )}
+
+        {/* Argentina */}
+        {!arg.started && (
+          <MiniCountdown
+            target={ARGENTINA_DEBUT}
+            label="Argentina · 14 Jun"
+            flag="🇦🇷"
+            matchup="Argentina vs Perú · Grupo D"
+            accent="#2a7ca8"
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+const MEDALS = ["🥇", "🥈", "🥉"];
+
+// Position chip — matches /tabla style
+function DashPositionChip({ pos }: { pos: number }) {
+  const cfg =
+    pos === 1 ? { bg: "#C8A84B", color: "white" }
+    : pos === 2 ? { bg: "var(--color-gray-400, #a4a7ae)", color: "white" }
+    : pos === 3 ? { bg: "#b45309", color: "white" }
+    : { bg: "var(--color-gray-100, #f5f5f5)", color: "var(--color-gray-500, #717680)" };
+  return (
+    <div
+      className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold"
+      style={{ background: cfg.bg, color: cfg.color }}
+    >
+      {pos}
+    </div>
+  );
+}
+
+const DEMO_UPCOMING = [
+  {
+    id: "d1",
+    home_flag: "🇲🇽",
+    away_flag: "🇿🇦",
+    home_team: "México",
+    away_team: "Sudáfrica",
+    group: "Grupo A",
+    display_date: "11 Jun · 19h00",
+  },
+  {
+    id: "d2",
+    home_flag: "🇺🇸",
+    away_flag: "🇨🇦",
+    home_team: "EEUU",
+    away_team: "Canadá",
+    group: "Grupo B",
+    display_date: "12 Jun · 16h00",
+  },
+  {
+    id: "d3",
+    home_flag: "🇧🇷",
+    away_flag: "🇨🇷",
+    home_team: "Brasil",
+    away_team: "Costa Rica",
+    group: "Grupo C",
+    display_date: "13 Jun · 19h00",
+  },
+  {
+    id: "d4",
+    home_flag: "🇦🇷",
+    away_flag: "🇵🇪",
+    home_team: "Argentina",
+    away_team: "Perú",
+    group: "Grupo D",
+    display_date: "14 Jun · 22h00",
+  },
+  {
+    id: "d5",
+    home_flag: "🇫🇷",
+    away_flag: "🇵🇹",
+    home_team: "Francia",
+    away_team: "Portugal",
+    group: "Grupo E",
+    display_date: "15 Jun · 16h00",
+  },
+];
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -79,12 +334,13 @@ export default function DashboardPage() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [liveMatches, setLiveMatches] = useState<Match[]>([]);
   const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
-  const [todayMatches, setTodayMatches] = useState<Match[]>([]);
-  const [totalPoints, setTotalPoints] = useState<number | null>(null);
-  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [, setTodayMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedGroupIdx, setSelectedGroupIdx] = useState(0);
+  const [groupStats, setGroupStats] = useState<
+    Array<{ points: number; predCount: number; leaderboard: any[] }>
+  >([]);
   const [, forceUpdate] = useState(0);
-  const countdown = useCountdown(WORLD_CUP_START);
 
   useEffect(() => {
     const t = setInterval(() => forceUpdate((n) => n + 1), 60000);
@@ -93,29 +349,63 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.replace("/auth/login"); return; }
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        router.replace("/auth/login");
+        return;
+      }
 
-      // Pending invite code (email/password flow)
-      const pendingCode = typeof window !== "undefined" ? localStorage.getItem("pending_invite_code") : null;
+      const pendingCode =
+        typeof window !== "undefined"
+          ? localStorage.getItem("pending_invite_code")
+          : null;
       if (pendingCode) {
         localStorage.removeItem("pending_invite_code");
-        const { data: group } = await supabase.from("groups").select("id").eq("invite_code", pendingCode.toUpperCase()).single();
+        const { data: group } = await supabase
+          .from("groups")
+          .select("id")
+          .eq("invite_code", pendingCode.toUpperCase())
+          .single();
         if (group) {
-          const { data: existing } = await supabase.from("group_members").select("id").eq("group_id", group.id).eq("user_id", session.user.id).single();
-          if (!existing) await supabase.from("group_members").insert({ group_id: group.id, user_id: session.user.id });
+          const { data: existing } = await supabase
+            .from("group_members")
+            .select("id")
+            .eq("group_id", group.id)
+            .eq("user_id", session.user.id)
+            .single();
+          if (!existing)
+            await supabase
+              .from("group_members")
+              .insert({ group_id: group.id, user_id: session.user.id });
           router.replace(`/grupos/${group.id}`);
           return;
         }
       }
 
-      const [{ data: prof }, { data: memberGroups }, { data: matchData }, { data: predsData }] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", session.user.id).single(),
-        supabase.from("group_members").select("groups(*)").eq("user_id", session.user.id),
-        supabase.from("matches").select("*").eq("phase", "group").order("match_date"),
-        supabase.from("predictions").select("points").eq("user_id", session.user.id).not("points", "is", null),
-      ]);
+      const [{ data: prof }, { data: memberGroups }, { data: matchData }] =
+        await Promise.all([
+          supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", session.user.id)
+            .single<Profile>(),
+          supabase
+            .from("group_members")
+            .select("groups(*)")
+            .eq("user_id", session.user.id),
+          supabase
+            .from("matches")
+            .select("*")
+            .eq("phase", "group")
+            .order("match_date"),
+        ]);
 
+      if (prof && !prof.username) {
+        router.replace("/auth/username");
+        return;
+      }
       setProfile(prof);
       const g = memberGroups?.map((m: any) => m.groups).filter(Boolean) ?? [];
       setGroups(g);
@@ -123,23 +413,45 @@ export default function DashboardPage() {
       const now = Date.now();
       const all = matchData ?? [];
       setLiveMatches(all.filter((m) => getLiveStatus(m) === "live"));
-      setUpcomingMatches(all.filter((m) => parseISO(m.match_date).getTime() > now).slice(0, 3));
+      setUpcomingMatches(
+        all.filter((m) => parseISO(m.match_date).getTime() > now).slice(0, 5),
+      );
 
       const todayStr = new Date().toISOString().slice(0, 10);
-      setTodayMatches(all.filter((m) => m.match_date.slice(0, 10) === todayStr).slice(0, 5));
+      setTodayMatches(
+        all.filter((m) => m.match_date.slice(0, 10) === todayStr).slice(0, 5),
+      );
 
-      const pts = (predsData ?? []).reduce((sum: number, p: any) => sum + (p.points ?? 0), 0);
-      setTotalPoints(pts);
-
-      const firstGroup = g[0];
-      if (firstGroup) {
-        const { data: lb } = await supabase
-          .from("leaderboard")
-          .select("user_id, full_name, avatar_url, total_points")
-          .eq("group_id", firstGroup.id)
-          .order("total_points", { ascending: false })
-          .limit(5);
-        setLeaderboard(lb ?? []);
+      if (g.length > 0) {
+        const stats = await Promise.all(
+          g.map(async (grp: Group) => {
+            const [{ data: preds }, { data: lb }] = await Promise.all([
+              supabase
+                .from("predictions")
+                .select("points")
+                .eq("user_id", session.user.id)
+                .eq("group_id", grp.id),
+              supabase
+                .from("leaderboard")
+                .select(
+                  "user_id, username, full_name, avatar_url, total_points",
+                )
+                .eq("group_id", grp.id)
+                .order("total_points", { ascending: false })
+                .limit(3),
+            ]);
+            const pts = (preds ?? []).reduce(
+              (s: number, p: any) => s + (p.points ?? 0),
+              0,
+            );
+            return {
+              points: pts,
+              predCount: (preds ?? []).length,
+              leaderboard: lb ?? [],
+            };
+          }),
+        );
+        setGroupStats(stats);
       }
 
       setLoading(false);
@@ -149,364 +461,751 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-dvh bg-app flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-[#003DA5] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-dvh flex items-center justify-center page-gradient">
+        <div
+          className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin"
+          style={{ borderColor: "#1e6a94", borderTopColor: "transparent" }}
+        />
       </div>
     );
   }
 
   const firstName = profile?.full_name?.split(" ")[0] ?? "Campeón";
+  const currentGroup = groups[selectedGroupIdx] ?? null;
+  const stats = groupStats[selectedGroupIdx] ?? {
+    points: 0,
+    predCount: 0,
+    leaderboard: [],
+  };
+  const progressPct =
+    TOTAL_MATCHES > 0 ? Math.round((stats.predCount / TOTAL_MATCHES) * 100) : 0;
 
   return (
-    <div className="min-h-dvh bg-app pb-24">
-
-      {/* ── HEADER ──────────────────────────────────────────────── */}
-      <div className="bg-fifa-pattern px-5 pt-14 pb-16 relative overflow-hidden">
-        <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/5" />
-        <div className="absolute -left-4 bottom-2 w-24 h-24 rounded-full bg-white/5" />
-
-        <div className="flex items-center justify-between mb-1 relative z-10">
-          <div>
-            <p className="text-white/60 text-xs tracking-widest">BIENVENIDO</p>
-            <h1 className="text-white text-2xl font-bold">{firstName} 👋</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Theme toggle */}
-            <ThemeToggle variant="header" />
-            {/* Help */}
-            <button onClick={() => router.push("/ayuda")}
-              className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center border border-white/20 active:scale-90 transition-transform">
-              <span className="text-white font-bold text-sm leading-none">?</span>
-            </button>
-            {/* Avatar */}
-            <button onClick={() => router.push("/perfil")} className="active:scale-90 transition-transform">
-              <AvatarBubble avatarUrl={profile?.avatar_url} name={firstName} size={44} />
-            </button>
-          </div>
-        </div>
-
-        {/* Stats strip */}
-        <div className="flex gap-2 mt-5 relative z-10">
+    <div
+      className="min-h-dvh pb-24 page-gradient"
+      style={{ fontFamily: "Inter, sans-serif" }}
+    >
+      {/* ── HEADER ──────────────────────────────────────────────────────── */}
+      <div
+        className="relative px-4"
+        style={{
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 16px)",
+          paddingBottom: 16,
+        }}
+      >
+        <div className="flex items-center justify-between gap-3">
+          {/* Izquierda: avatar + saludo */}
           <button
-            onClick={() => groups[0] && router.push(`/grupos/${groups[0].id}`)}
-            className="flex-1 bg-white/15 rounded-2xl px-3 py-2.5 text-center active:scale-95 transition-transform border border-white/10">
-            <p className="text-white/60 text-xs mb-0.5">Mis puntos</p>
-            <p className="text-white font-bold text-xl leading-tight" style={{ fontFamily: "Bebas Neue, sans-serif" }}>
-              {totalPoints ?? "—"}
-            </p>
+            onClick={() => router.push("/perfil")}
+            className="flex items-center gap-3 active:opacity-75 transition-opacity min-w-0"
+          >
+            <AvatarBubble
+              avatarUrl={profile?.avatar_url}
+              name={firstName}
+              size={42}
+            />
+            <div className="min-w-0 text-left">
+              <p className="text-[11px] font-medium leading-none mb-0.5 text-muted">
+                Bienvenida de vuelta
+              </p>
+              <h1
+                className="leading-tight truncate"
+                style={{
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: "var(--color-gray-900, #181d27)",
+                }}
+              >
+                Hola, {firstName} 👋
+              </h1>
+            </div>
           </button>
-          <div className="flex-1 bg-white/15 rounded-2xl px-3 py-2.5 text-center border border-white/10">
-            <p className="text-white/60 text-xs mb-0.5">Inicio</p>
-            <p className="text-white font-bold text-sm leading-tight">11 Jun</p>
-          </div>
-          <div className="flex-1 bg-white/15 rounded-2xl px-3 py-2.5 text-center border border-white/10">
-            <p className="text-white/60 text-xs mb-0.5">Partidos</p>
-            <p className="text-white font-bold text-xl leading-tight" style={{ fontFamily: "Bebas Neue, sans-serif" }}>72</p>
+
+          {/* Derecha: action buttons en pill */}
+          <div className="flex items-center gap-1 flex-shrink-0 px-1.5 py-1.5 rounded-2xl glass-pill">
+            <ThemeToggle variant="header" />
+            <button
+              onClick={() => router.push("/ayuda")}
+              className="w-8 h-8 rounded-xl flex items-center justify-center active:opacity-70 transition-opacity glass-btn"
+            >
+              <HelpCircle className="glass-btn" width={18} height={18} />
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="px-4 -mt-6 relative z-10 space-y-3">
-
-        {/* ── EN VIVO ─────────────────────────────────────────────── */}
+      <div className="px-4 relative z-10 space-y-5">
+        {/* ── EN VIVO ──────────────────────────────────────────────────── */}
         {liveMatches.length > 0 && (
-          <div className="rounded-3xl overflow-hidden shadow-md" style={{ background: "linear-gradient(135deg, #0a2a6e, #003DA5)" }}>
-            <div className="px-5 pt-4 pb-2 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-              <span className="text-white text-xs font-bold tracking-widest">EN VIVO</span>
+          <div
+            className="card-white rounded-2xl overflow-hidden"
+            style={{
+              border: "1px solid var(--color-gray-200, #e9eaeb)",
+              boxShadow: "0 1px 3px rgba(10,13,18,0.1)",
+            }}
+          >
+            <div
+              className="px-4 py-3 flex items-center gap-2"
+              style={{
+                borderBottom: "1px solid var(--color-gray-100, #f5f5f5)",
+              }}
+            >
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+              <span className="text-xs font-semibold text-red-600 tracking-wide uppercase">
+                En vivo
+              </span>
             </div>
-            <div className="divide-y divide-white/10">
-              {liveMatches.map((match) => {
-                const min = getMinute(match);
-                const hasScore = match.home_score !== null && match.away_score !== null;
-                return (
-                  <div key={match.id} className="px-5 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 flex items-center gap-2 min-w-0">
-                        <span className="text-2xl flex-shrink-0">{match.home_flag}</span>
-                        <span className="text-white text-sm font-semibold truncate">{match.home_team}</span>
+            {liveMatches.map((match, idx) => {
+              const min = getMinute(match);
+              const hasScore =
+                match.home_score !== null && match.away_score !== null;
+              return (
+                <div
+                  key={match.id}
+                  className="px-4 py-3"
+                  style={
+                    idx < liveMatches.length - 1
+                      ? {
+                          borderBottom:
+                            "1px solid var(--color-gray-100, #f5f5f5)",
+                        }
+                      : {}
+                  }
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 flex items-center gap-2 min-w-0">
+                      <span className="text-xl flex-shrink-0">
+                        {match.home_flag}
+                      </span>
+                      <span
+                        className="text-sm font-semibold truncate"
+                        style={{ color: "var(--color-gray-900, #181d27)" }}
+                      >
+                        {match.home_team}
+                      </span>
+                    </div>
+                    <div className="flex-shrink-0 text-center">
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className="font-bold text-xl tabular-nums"
+                          style={{
+                            color: "var(--color-gray-900, #181d27)",
+                            fontFamily: "Bebas Neue, sans-serif",
+                          }}
+                        >
+                          {hasScore ? match.home_score : "–"}
+                        </span>
+                        <span
+                          className="text-sm font-light"
+                          style={{ color: "var(--color-gray-400, #a4a7ae)" }}
+                        >
+                          ·
+                        </span>
+                        <span
+                          className="font-bold text-xl tabular-nums"
+                          style={{
+                            color: "var(--color-gray-900, #181d27)",
+                            fontFamily: "Bebas Neue, sans-serif",
+                          }}
+                        >
+                          {hasScore ? match.away_score : "–"}
+                        </span>
                       </div>
-                      <div className="flex-shrink-0 text-center px-2">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-white font-bold text-2xl tabular-nums" style={{ fontFamily: "Bebas Neue, sans-serif" }}>{hasScore ? match.home_score : "?"}</span>
-                          <span className="text-white/30 text-lg">-</span>
-                          <span className="text-white font-bold text-2xl tabular-nums" style={{ fontFamily: "Bebas Neue, sans-serif" }}>{hasScore ? match.away_score : "?"}</span>
-                        </div>
-                        <div className="flex items-center justify-center gap-1 mt-0.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-                          <span className="text-red-300 text-xs font-bold">{min}'</span>
-                        </div>
-                      </div>
-                      <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
-                        <span className="text-white text-sm font-semibold truncate text-right">{match.away_team}</span>
-                        <span className="text-2xl flex-shrink-0">{match.away_flag}</span>
-                      </div>
+                      <span className="text-xs font-semibold text-red-500">
+                        {min}&apos;
+                      </span>
+                    </div>
+                    <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
+                      <span
+                        className="text-sm font-semibold truncate text-right"
+                        style={{ color: "var(--color-gray-900, #181d27)" }}
+                      >
+                        {match.away_team}
+                      </span>
+                      <span className="text-xl flex-shrink-0">
+                        {match.away_flag}
+                      </span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* ── COUNTDOWN ───────────────────────────────────────────── */}
-        {!countdown.started && (
-          <div className="bg-surface rounded-3xl shadow-sm px-5 pt-5 pb-4">
-            <div className="flex items-center justify-between mb-4">
-              <span className="inline-flex items-center gap-1.5 bg-[#F0F4FF] text-[color:var(--color-primary)] text-xs font-bold px-3 py-1 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#003DA5]" />
-                FALTAN PARA EL MUNDIAL
-              </span>
-              <span className="text-[color:var(--color-muted)] text-xs">11 Jun 2026</span>
-            </div>
-            <div className="flex justify-center mb-4">
-              <FlipClock />
-            </div>
-            <div className="flex items-center justify-center gap-2 py-2.5 bg-surface-2 rounded-2xl">
-              <span className="text-lg">🇲🇽</span>
-              <span className="text-gray-500 text-xs font-semibold">México vs Sudáfrica · Estadio Azteca</span>
-              <span className="text-lg">🇿🇦</span>
-            </div>
-          </div>
-        )}
-
-        {/* ── PRÓXIMOS (solo cuando ya arrancó) ───────────────────── */}
-        {countdown.started && liveMatches.length === 0 && upcomingMatches.length > 0 && (
-          <div className="bg-surface rounded-3xl shadow-sm overflow-hidden">
-            <div className="px-5 pt-4 pb-2 border-b border-soft">
-              <p className="text-gray-400 text-xs font-bold tracking-widest">📅 PRÓXIMOS PARTIDOS</p>
-            </div>
-            <div className="divide-y divide-soft">
-              {upcomingMatches.map((match) => (
-                <div key={match.id} className="px-5 py-3 flex items-center gap-2">
-                  <div className="flex-1 flex items-center gap-2 min-w-0">
-                    <span className="text-xl">{match.home_flag}</span>
-                    <span className="text-[color:var(--color-text-2)] text-sm font-semibold truncate">{match.home_team}</span>
-                  </div>
-                  <span className="text-gray-300 text-xs flex-shrink-0">
-                    {format(parseISO(match.match_date), "d MMM · HH'h'mm", { locale: es })}
-                  </span>
-                  <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
-                    <span className="text-[color:var(--color-text-2)] text-sm font-semibold truncate text-right">{match.away_team}</span>
-                    <span className="text-xl">{match.away_flag}</span>
-                  </div>
                 </div>
-              ))}
-            </div>
-            <button onClick={() => router.push("/partidos")} className="w-full py-3 text-[color:var(--color-primary)] text-sm font-semibold border-t border-soft">
-              Ver todos los partidos →
-            </button>
+              );
+            })}
           </div>
         )}
 
-        {/* ── PARTIDOS DE HOY ─────────────────────────────────────── */}
-        {(() => {
-          const displayMatches = todayMatches.length > 0 ? todayMatches : (countdown.started ? upcomingMatches : []);
-          const title = todayMatches.length > 0 ? "⚽ Partidos de hoy" : "📅 Próximos partidos";
-          if (displayMatches.length === 0 || !countdown.started) return null;
-          return (
-            <div className="bg-surface rounded-3xl shadow-sm overflow-hidden">
-              <div className="px-5 pt-4 pb-2 border-b border-soft flex items-center justify-between">
-                <p className="font-bold text-gray-800 text-sm">{title}</p>
-                <button onClick={() => router.push("/partidos")} className="text-[color:var(--color-primary)] text-xs font-semibold">Ver todos</button>
-              </div>
-              <div className="divide-y divide-soft">
-                {displayMatches.map((match) => {
-                  const live = getLiveStatus(match) === "live";
-                  const finished = match.status === "finished";
-                  return (
-                    <button key={match.id} onClick={() => router.push("/partidos")}
-                      className="w-full flex items-center gap-2 px-5 py-3 active:bg-surface-2 transition-colors">
-                      <span className="text-xl flex-shrink-0">{match.home_flag}</span>
-                      <span className="text-xs font-semibold text-[color:var(--color-text-2)] flex-1 text-left truncate">{match.home_team}</span>
-                      <div className="flex-shrink-0 text-center min-w-[72px]">
-                        {finished ? (
-                          <span className="text-sm font-bold text-[color:var(--color-primary)]" style={{ fontFamily: "Bebas Neue, sans-serif" }}>
-                            {match.home_score} - {match.away_score}
-                          </span>
-                        ) : live ? (
-                          <span className="flex items-center justify-center gap-1 text-xs font-bold text-red-500">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />EN VIVO
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-400">
-                            {format(parseISO(match.match_date), "HH'h'mm", { locale: es })}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs font-semibold text-[color:var(--color-text-2)] flex-1 text-right truncate">{match.away_team}</span>
-                      <span className="text-xl flex-shrink-0">{match.away_flag}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
+        {/* ── COUNTDOWN ────────────────────────────────────────────────── */}
+        <CountdownCard />
 
-        {/* ── CTA PREDICCIONES ────────────────────────────────────── */}
-        <button onClick={() => router.push("/predicciones")}
-          className="w-full rounded-3xl p-5 text-left active:scale-95 transition-transform relative overflow-hidden shadow-sm"
-          style={{ background: "linear-gradient(135deg, #E30613, #B30010)" }}>
-          <div className="absolute -right-4 -bottom-4 text-8xl opacity-10 select-none">⚽</div>
-          <p className="text-white/70 text-xs font-bold tracking-widest mb-1">FASE DE GRUPOS</p>
-          <h3 className="text-white font-bold text-xl mb-1">Cargá tus predicciones</h3>
-          <p className="text-white/70 text-sm">72 partidos · Apertura 11 Jun 2026</p>
-          <div className="flex items-center gap-1 mt-3">
-            <span className="text-white text-sm font-semibold">Ver partidos</span>
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+        {/* ── CTA PREDICCIONES ─────────────────────────────────────────── */}
+        <button
+          onClick={() => router.push("/predicciones")}
+          className="w-full rounded-2xl text-left active:scale-[0.98] transition-transform relative overflow-hidden"
+          style={{
+            background:
+              "linear-gradient(135deg, #2a7ca8 0%, #4a9fc0 40%, #75c2e0 100%)",
+            boxShadow: "0 4px 12px rgba(42,124,168,0.4)",
+          }}
+        >
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-20">
+            <Trophy01 width={80} height={80} className="text-white" />
+          </div>
+          <div className="px-5 py-5">
+            <p
+              className="text-xs font-semibold tracking-widest uppercase mb-1"
+              style={{ color: "rgba(255,255,255,0.7)" }}
+            >
+              Mundial 2026 · 72 partidos
+            </p>
+            <h3 className="font-bold text-xl leading-snug mb-4 text-white">
+              Cargá tus
+              <br />
+              predicciones
+            </h3>
+            <div
+              className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5"
+              style={{
+                background: "white",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
+              }}
+            >
+              <span
+                className="text-xs font-semibold"
+                style={{ color: "#2a7ca8" }}
+              >
+                Empezar ahora
+              </span>
+              <ArrowNarrowRight
+                width={14}
+                height={14}
+                style={{ color: "#2a7ca8" }}
+              />
+            </div>
           </div>
         </button>
 
-        {/* ── MINI TABLA ──────────────────────────────────────────── */}
-        {leaderboard.length > 0 && (
-          <div className="bg-surface rounded-3xl shadow-sm overflow-hidden">
-            <div className="px-5 pt-4 pb-3 border-b border-soft flex items-center justify-between">
-              <h2 className="font-bold text-[color:var(--color-text)] text-base flex items-center gap-2">🏆 Tabla</h2>
-              <button onClick={() => router.push("/tabla")} className="text-[color:var(--color-primary)] text-xs font-semibold">Ver todos</button>
-            </div>
-            <div className="divide-y divide-soft">
-              {leaderboard.map((entry, i) => {
-                const isMe = entry.user_id === profile?.id;
-                const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
-                return (
-                  <div key={entry.user_id} className={`flex items-center gap-3 px-5 py-3 ${isMe ? "bg-surface-2" : ""}`}>
-                    <div className="w-6 text-center flex-shrink-0">
-                      {medal
-                        ? <span className="text-base">{medal}</span>
-                        : <span className="text-gray-400 font-bold text-xs">{i + 1}</span>}
-                    </div>
-                    <AvatarBubble avatarUrl={entry.avatar_url} name={entry.full_name ?? "?"} size={34} />
-                    <span className={`flex-1 text-sm font-semibold truncate ${isMe ? "text-[color:var(--color-primary)]" : "text-[color:var(--color-text)]"}`}>
-                      {isMe ? "Vos" : (entry.full_name ?? "Usuario")}
-                    </span>
-                    <span className={`text-xl font-bold tabular-nums ${isMe ? "text-[color:var(--color-primary)]" : "text-[color:var(--color-text-2)]"}`}
-                      style={{ fontFamily: "Bebas Neue, sans-serif" }}>
-                      {entry.total_points}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+        {/* ── MIS GRUPOS ────────────────────────────────────────────────── */}
+        <div>
+          <div className="flex items-center justify-between mb-2.5">
+            <p
+              className="text-xs font-semibold uppercase tracking-wider"
+              style={{ color: "var(--color-gray-500, #717680)" }}
+            >
+              Mis grupos
+            </p>
+            <button
+              onClick={() => router.push("/grupos")}
+              className="text-xs font-semibold flex items-center gap-0.5 active:opacity-70"
+              style={{ color: "var(--color-brand-600, #003da5)" }}
+            >
+              Ver todos <ChevronRight width={12} height={12} />
+            </button>
           </div>
-        )}
 
-        {/* ── MIS GRUPOS ──────────────────────────────────────────── */}
-        <div className="bg-surface rounded-3xl shadow-sm overflow-hidden">
-          <div className="px-5 pt-4 pb-3 border-b border-soft flex items-center justify-between">
-            <h2 className="font-bold text-[color:var(--color-text)] text-base">👥 Mis Grupos</h2>
-            <button onClick={() => router.push("/grupos")} className="text-[color:var(--color-primary)] text-xs font-semibold">Ver todos</button>
-          </div>
-          {groups.length === 0 ? (
-            <div className="text-center py-8 px-5">
-              <span className="text-4xl block mb-3">👥</span>
-              <p className="text-[color:var(--color-muted)] text-sm mb-4">Todavía no estás en ningún grupo</p>
-              <div className="flex gap-2">
-                <button onClick={() => router.push("/grupos/crear")}
-                  className="flex-1 bg-[#003DA5] text-white py-3 rounded-xl text-sm font-semibold active:scale-95 transition-transform">
-                  Crear grupo
+          {groups.length > 0 ? (
+            <div
+              className="card-white rounded-2xl overflow-hidden"
+              style={{
+                border: "1px solid var(--color-gray-200, #e9eaeb)",
+                boxShadow: "0 1px 3px rgba(10,13,18,0.1)",
+              }}
+            >
+              {/* Group tab selector */}
+              <div
+                className="px-4 py-2.5 flex items-center gap-2"
+                style={{
+                  borderBottom: "1px solid var(--color-gray-100, #f5f5f5)",
+                }}
+              >
+                <Users01
+                  width={14}
+                  height={14}
+                  style={{
+                    color: "var(--color-gray-400, #a4a7ae)",
+                    flexShrink: 0,
+                  }}
+                />
+                {groups.length > 1 ? (
+                  <div
+                    className="flex gap-1.5 flex-1 overflow-x-auto"
+                    style={{ scrollbarWidth: "none" }}
+                  >
+                    {groups.map((g, i) => (
+                      <button
+                        key={g.id}
+                        onClick={() => setSelectedGroupIdx(i)}
+                        className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-semibold transition-all active:scale-95"
+                        style={
+                          selectedGroupIdx === i
+                            ? {
+                                background: "var(--color-brand-600, #003da5)",
+                                color: "white",
+                              }
+                            : {
+                                background: "var(--color-gray-100, #f5f5f5)",
+                                color: "var(--color-gray-600, #535862)",
+                              }
+                        }
+                      >
+                        {g.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <span
+                    className="flex-1 text-sm font-semibold"
+                    style={{ color: "var(--color-gray-900, #181d27)" }}
+                  >
+                    {currentGroup?.name}
+                  </span>
+                )}
+                <button
+                  onClick={() =>
+                    currentGroup && router.push(`/grupos/${currentGroup.id}`)
+                  }
+                  className="flex-shrink-0 flex items-center gap-0.5 text-xs font-semibold active:opacity-70"
+                  style={{ color: "var(--color-brand-600, #003da5)" }}
+                >
+                  Ver <ChevronRight width={12} height={12} />
                 </button>
-                <button onClick={() => router.push("/grupos/unirse")}
-                  className="flex-1 border-2 border-[#003DA5] text-[color:var(--color-primary)] py-3 rounded-xl text-sm font-semibold active:scale-95 transition-transform">
-                  Unirme
+              </div>
+
+              {/* Predictions progress */}
+              <div
+                className="px-4 pt-4 pb-3"
+                style={{
+                  borderBottom: "1px solid var(--color-gray-100, #f5f5f5)",
+                }}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <p
+                      className="text-xs font-semibold uppercase tracking-wider mb-0.5"
+                      style={{ color: "var(--color-gray-500, #717680)" }}
+                    >
+                      Tus predicciones
+                    </p>
+                    <p
+                      className="text-sm font-semibold"
+                      style={{ color: "var(--color-gray-900, #181d27)" }}
+                    >
+                      {stats.predCount === 0
+                        ? "¡Empezá a predecir!"
+                        : stats.predCount === TOTAL_MATCHES
+                          ? "¡Completaste todo! 🎉"
+                          : `Faltan ${TOTAL_MATCHES - stats.predCount} partidos`}
+                    </p>
+                  </div>
+                  <ClipboardCheck
+                    width={20}
+                    height={20}
+                    style={{
+                      color: "var(--color-brand-600, #003da5)",
+                      flexShrink: 0,
+                    }}
+                  />
+                </div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span
+                    className="text-xs font-medium"
+                    style={{ color: "var(--color-gray-500, #717680)" }}
+                  >
+                    {progressPct}% completado
+                  </span>
+                  <span
+                    className="text-xs font-semibold tabular-nums"
+                    style={{ color: "var(--color-gray-700, #414651)" }}
+                  >
+                    {stats.predCount} / {TOTAL_MATCHES}
+                  </span>
+                </div>
+                <div
+                  className="h-2 rounded-full overflow-hidden"
+                  style={{ background: "var(--color-gray-100, #f5f5f5)" }}
+                >
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{
+                      width: `${progressPct}%`,
+                      background:
+                        progressPct === 100
+                          ? "var(--color-success-500, #17b26a)"
+                          : "var(--color-brand-600, #003da5)",
+                    }}
+                  />
+                </div>
+                <button
+                  onClick={() => router.push("/predicciones")}
+                  className="mt-3 w-full py-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 active:opacity-80 transition-opacity"
+                  style={{
+                    background: "var(--color-brand-600, #003da5)",
+                    color: "white",
+                  }}
+                >
+                  {stats.predCount === 0
+                    ? "Cargar predicciones"
+                    : "Completar predicciones"}
+                  <ArrowNarrowRight width={15} height={15} />
                 </button>
+              </div>
+
+              {/* Mini leaderboard */}
+              <div>
+                <div className="px-4 pt-3 pb-1 flex items-center justify-between">
+                  <p
+                    className="text-xs font-semibold uppercase tracking-wider"
+                    style={{ color: "var(--color-gray-500, #717680)" }}
+                  >
+                    Tabla
+                  </p>
+                </div>
+                {stats.leaderboard.length > 0 ? (
+                  <div className="px-3 pb-2 space-y-1">
+                    {stats.leaderboard.map((entry, i) => {
+                      const isMe = entry.user_id === profile?.id;
+                      return (
+                        <div
+                          key={entry.user_id}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                          style={{
+                            background: isMe
+                              ? "var(--color-brand-50, #eff4ff)"
+                              : "transparent",
+                            border: isMe
+                              ? "1px solid var(--color-brand-200, #b2ccff)"
+                              : "1px solid transparent",
+                          }}
+                        >
+                          <DashPositionChip pos={i + 1} />
+                          <AvatarBubble
+                            avatarUrl={entry.avatar_url}
+                            name={entry.full_name ?? "?"}
+                            size={30}
+                          />
+                          <span
+                            className="flex-1 text-sm font-medium truncate"
+                            style={{
+                              color: isMe
+                                ? "var(--color-brand-700, #003da5)"
+                                : "var(--color-gray-700, #414651)",
+                            }}
+                          >
+                            {isMe
+                              ? `@${entry.username ?? entry.full_name?.split(" ")[0] ?? "vos"} (Vos)`
+                              : entry.username
+                                ? `@${entry.username}`
+                                : (entry.full_name?.split(" ")[0] ?? "Usuario")}
+                          </span>
+                          <div className="flex items-baseline gap-0.5">
+                            <span
+                              className="font-bold text-sm tabular-nums"
+                              style={{
+                                color: isMe
+                                  ? "var(--color-brand-700, #003da5)"
+                                  : "var(--color-gray-900, #181d27)",
+                              }}
+                            >
+                              {entry.total_points}
+                            </span>
+                            <span
+                              className="text-xs"
+                              style={{
+                                color: "var(--color-gray-400, #a4a7ae)",
+                              }}
+                            >
+                              pts
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="px-4 py-5 text-center">
+                    <p
+                      className="text-sm"
+                      style={{ color: "var(--color-gray-400, #a4a7ae)" }}
+                    >
+                      Cargá predicciones para ver la tabla
+                    </p>
+                  </div>
+                )}
+                <div className="px-3 pb-3 pt-1">
+                  <button
+                    onClick={() => router.push("/tabla")}
+                    className="w-full py-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-1 active:opacity-80 transition-opacity"
+                    style={{
+                      background: "var(--color-gray-50, #fafafa)",
+                      border: "1px solid var(--color-gray-200, #e9eaeb)",
+                      color: "var(--color-gray-700, #414651)",
+                    }}
+                  >
+                    Ver tabla completa <ChevronRight width={14} height={14} />
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
-            <div>
-              <div className="divide-y divide-soft">
-                {groups.slice(0, 3).map((group) => (
-                  <button key={group.id} onClick={() => router.push(`/grupos/${group.id}`)}
-                    className="w-full flex items-center gap-3 px-5 py-3.5 active:bg-surface-2 transition-colors">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                      style={{ background: "linear-gradient(135deg, #003DA5, #1A5FBF)" }}>🏆</div>
-                    <div className="text-left flex-1 min-w-0">
-                      <p className="font-semibold text-[color:var(--color-text)] text-sm truncate">{group.name}</p>
-                      <p className="text-[color:var(--color-muted)] text-xs">Código: {group.invite_code}</p>
-                    </div>
-                    <svg className="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+            <div
+              className="card-white rounded-2xl overflow-hidden"
+              style={{
+                border: "1px solid var(--color-gray-200, #e9eaeb)",
+                boxShadow: "0 1px 3px rgba(10,13,18,0.1)",
+              }}
+            >
+              <div className="px-5 pt-8 pb-6 text-center">
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4"
+                  style={{ background: "var(--color-brand-50, #eff4ff)" }}
+                >
+                  <Users01
+                    width={24}
+                    height={24}
+                    style={{ color: "var(--color-brand-600, #003da5)" }}
+                  />
+                </div>
+                <h3
+                  className="text-base font-semibold mb-1"
+                  style={{ color: "var(--color-gray-900, #181d27)" }}
+                >
+                  Jugá con tus amigos
+                </h3>
+                <p
+                  className="text-sm mb-5"
+                  style={{ color: "var(--color-gray-500, #717680)" }}
+                >
+                  Creá o unite a un grupo para competir en el prode del Mundial
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => router.push("/grupos/crear")}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold active:opacity-80 transition-opacity"
+                    style={{
+                      background: "var(--color-brand-600, #003da5)",
+                      color: "white",
+                    }}
+                  >
+                    Crear grupo
                   </button>
-                ))}
-              </div>
-              <div className="flex gap-2 p-4 border-t border-soft">
-                <button onClick={() => router.push("/grupos/crear")}
-                  className="flex-1 bg-[#003DA5] text-white py-2.5 rounded-xl text-sm font-semibold active:scale-95 transition-transform">
-                  + Crear grupo
-                </button>
-                <button onClick={() => router.push("/grupos/unirse")}
-                  className="flex-1 border-2 border-[#003DA5] text-[color:var(--color-primary)] py-2.5 rounded-xl text-sm font-semibold active:scale-95 transition-transform">
-                  Unirme
-                </button>
+                  <button
+                    onClick={() => router.push("/grupos/unirse")}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold active:opacity-80 transition-opacity"
+                    style={{
+                      background: "white",
+                      border: "1px solid var(--color-gray-300, #d5d7da)",
+                      color: "var(--color-gray-700, #414651)",
+                    }}
+                  >
+                    Unirme
+                  </button>
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* ── SISTEMA DE PUNTOS ───────────────────────────────────── */}
-        <button
-          onClick={() => router.push("/ayuda")}
-          className="w-full text-left active:scale-95 transition-transform rounded-3xl overflow-hidden shadow-sm"
-          style={{ background: "linear-gradient(150deg, #0a1f5c 0%, #003DA5 60%, #1A5FBF 100%)" }}
-        >
-          {/* Header */}
-          <div className="px-5 pt-5 pb-4">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-white/60 text-xs font-bold tracking-widest mb-1">CÓMO FUNCIONA</p>
-                <h2 className="text-white font-bold text-lg leading-tight">Sistema de puntos</h2>
-              </div>
-              <span className="text-3xl">🏆</span>
-            </div>
-
-            {/* Points pills */}
-            <div className="flex gap-2 mb-4">
-              {[
-                { pts: 3, label: "Exacto", bg: "bg-white", text: "text-[color:var(--color-primary)]" },
-                { pts: 1, label: "Ganador", bg: "bg-white/20", text: "text-white" },
-                { pts: 0, label: "Error", bg: "bg-white/10", text: "text-white/60" },
-              ].map(({ pts, label, bg, text }) => (
-                <div key={pts} className={`flex-1 ${bg} rounded-2xl py-3 text-center`}>
-                  <p className={`font-bold text-2xl leading-tight ${text}`} style={{ fontFamily: "Bebas Neue, sans-serif" }}>{pts} pts</p>
-                  <p className={`text-xs font-semibold mt-0.5 ${text}`}>{label}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Rows */}
-            <div className="space-y-2">
-              {[
-                { pts: "3", emoji: "🎯", title: "Resultado exacto", desc: "Marcador exacto · ej: 2-1 → 2-1" },
-                { pts: "1", emoji: "✅", title: "Ganador / Empate", desc: "Acertás el resultado pero no el marcador" },
-                { pts: "0", emoji: "❌", title: "Sin puntos", desc: "El resultado no coincide" },
-              ].map(({ pts, emoji, title, desc }) => (
-                <div key={pts} className="flex items-center gap-3 bg-white/10 rounded-xl px-3 py-2.5">
-                  <span className="text-xl flex-shrink-0">{emoji}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-xs font-semibold">{title}</p>
-                    <p className="text-white/50 text-xs">{desc}</p>
-                  </div>
-                  <span className="text-white font-bold text-lg flex-shrink-0" style={{ fontFamily: "Bebas Neue, sans-serif" }}>{pts}</span>
-                </div>
-              ))}
-            </div>
+        {/* ── PRÓXIMOS PARTIDOS (scroll horizontal) ────────────────────── */}
+        <div>
+          <div className="flex items-center justify-between mb-2.5">
+            <p
+              className="text-xs font-semibold uppercase tracking-wider"
+              style={{ color: "var(--color-gray-500, #717680)" }}
+            >
+              Próximos partidos
+            </p>
+            <button
+              onClick={() => router.push("/partidos")}
+              className="text-xs font-semibold flex items-center gap-0.5 active:opacity-70"
+              style={{ color: "var(--color-brand-600, #003da5)" }}
+            >
+              Ver todos <ChevronRight width={12} height={12} />
+            </button>
           </div>
+          <div
+            className="flex gap-2.5 overflow-x-auto pb-1"
+            style={{ scrollbarWidth: "none" }}
+          >
+            {(upcomingMatches.length > 0 ? upcomingMatches : DEMO_UPCOMING).map(
+              (m: any, i: number) => (
+                <button
+                  key={m.id ?? i}
+                  onClick={() => router.push("/partidos")}
+                  className="flex-shrink-0 card-white rounded-2xl active:scale-[0.97] transition-transform"
+                  style={{
+                    width: 130,
+                    border: "1px solid var(--color-gray-200, #e9eaeb)",
+                    boxShadow: "0 1px 3px rgba(10,13,18,0.08)",
+                  }}
+                >
+                  <div className="p-3 flex flex-col items-center gap-2">
+                    <span
+                      className="text-xs font-medium px-2 py-0.5 rounded-full"
+                      style={{
+                        background: "var(--color-gray-100, #f5f5f5)",
+                        color: "var(--color-gray-500, #717680)",
+                      }}
+                    >
+                      {m.group ?? "Grupo A"}
+                    </span>
+                    <div className="flex items-center gap-2 w-full justify-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-2xl">{m.home_flag}</span>
+                        <span
+                          className="text-[10px] font-semibold text-center leading-tight"
+                          style={{
+                            color: "var(--color-gray-700, #414651)",
+                            maxWidth: 44,
+                          }}
+                        >
+                          {m.home_team}
+                        </span>
+                      </div>
+                      <span
+                        className="text-xs font-bold"
+                        style={{ color: "var(--color-gray-300, #d5d7da)" }}
+                      >
+                        vs
+                      </span>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-2xl">{m.away_flag}</span>
+                        <span
+                          className="text-[10px] font-semibold text-center leading-tight"
+                          style={{
+                            color: "var(--color-gray-700, #414651)",
+                            maxWidth: 44,
+                          }}
+                        >
+                          {m.away_team}
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className="text-[10px] font-medium tabular-nums"
+                      style={{ color: "var(--color-gray-400, #a4a7ae)" }}
+                    >
+                      {m.display_date ??
+                        format(parseISO(m.match_date), "d MMM · HH'h'mm", {
+                          locale: es,
+                        })}
+                    </span>
+                  </div>
+                </button>
+              ),
+            )}
+          </div>
+        </div>
 
-          {/* Footer CTA */}
-          <div className="flex items-center justify-between px-5 py-3 bg-white/10 border-t border-white/10">
-            <span className="text-white/70 text-xs">⏰ Hasta 24hs antes de cada partido</span>
-            <span className="text-white text-xs font-bold flex items-center gap-1">
-              Ver reglas completas
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </span>
+        {/* ── SISTEMA DE PUNTOS ────────────────────────────────────────── */}
+        <div
+          className="card-white rounded-2xl overflow-hidden"
+          style={{
+            border: "1px solid var(--color-gray-200, #e9eaeb)",
+            boxShadow: "0 1px 3px rgba(10,13,18,0.08)",
+          }}
+        >
+          <div className="px-4 pt-3.5 pb-1 flex items-center justify-between">
+            <p
+              className="text-xs font-semibold uppercase tracking-wider"
+              style={{ color: "var(--color-gray-500, #717680)" }}
+            >
+              Sistema de puntos
+            </p>
+            <button
+              onClick={() => router.push("/ayuda")}
+              className="text-xs font-semibold flex items-center gap-0.5 active:opacity-70"
+              style={{ color: "var(--color-brand-600, #003da5)" }}
+            >
+              Ver más <ChevronRight width={12} height={12} />
+            </button>
+          </div>
+          <div className="px-4 pb-4 pt-2 flex gap-2">
+            {[
+              {
+                pts: "3",
+                label: "Exacto",
+                sub: "Marcador exacto",
+                bg: "var(--color-brand-600, #003da5)",
+              },
+              {
+                pts: "1",
+                label: "Ganador",
+                sub: "Resultado correcto",
+                bg: "#d97706",
+              },
+              {
+                pts: "0",
+                label: "Fallo",
+                sub: "Sin puntos",
+                bg: "var(--color-gray-300, #d5d7da)",
+              },
+            ].map(({ pts, label, sub, bg }) => (
+              <div
+                key={label}
+                className="flex-1 rounded-xl p-2.5 text-center"
+                style={{
+                  background: "var(--color-gray-50, #fafafa)",
+                  border: "1px solid var(--color-gray-100, #f5f5f5)",
+                }}
+              >
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-1.5"
+                  style={{ background: bg }}
+                >
+                  <span className="text-white text-sm font-bold">{pts}</span>
+                </div>
+                <p
+                  className="text-xs font-semibold"
+                  style={{ color: "var(--color-gray-800, #1d2939)" }}
+                >
+                  {label}
+                </p>
+                <p
+                  className="text-[10px] leading-tight mt-0.5"
+                  style={{ color: "var(--color-gray-400, #a4a7ae)" }}
+                >
+                  {sub}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── BANNER GRUPOS ─────────────────────────────────────────────── */}
+        <button
+          onClick={() => router.push("/grupos/crear")}
+          className="w-full rounded-2xl text-left active:scale-[0.98] transition-transform overflow-hidden"
+          style={{
+            background:
+              "linear-gradient(135deg, #001a4d 0%, #002d7a 55%, #003da5 100%)",
+            boxShadow: "0 4px 12px rgba(0,26,77,0.45)",
+          }}
+        >
+          <div className="px-5 py-4 flex items-center gap-4">
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "rgba(255,255,255,0.08)" }}
+            >
+              <Users01 width={22} height={22} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-sm font-semibold leading-tight">
+                Invitá a tus amigos
+              </p>
+              <p
+                className="text-xs mt-0.5 leading-tight"
+                style={{ color: "rgba(255,255,255,0.5)" }}
+              >
+                Creá un grupo y compitan juntos en el Mundial
+              </p>
+            </div>
+            <div
+              className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(255,255,255,0.1)" }}
+            >
+              <ChevronRight width={14} height={14} className="text-white" />
+            </div>
           </div>
         </button>
-
       </div>
       <BottomNav active="home" />
     </div>

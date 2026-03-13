@@ -11,6 +11,17 @@ import {
   getCurrentSubscription,
   getSubscriptionStatus,
 } from "@/lib/pushClient"
+import {
+  Edit01,
+  Trophy01,
+  Bell01,
+  BellOff01,
+  LogOut01,
+  ChevronRight,
+  Moon01,
+  UserCircle,
+  HelpCircle,
+} from "@untitledui/icons"
 
 const PRESET_AVATARS = [
   '⚽', '🏆', '🦁', '🐯', '🦊', '🐺', '🦅', '🦋',
@@ -18,7 +29,7 @@ const PRESET_AVATARS = [
   '🇦🇷', '🇧🇷', '🇫🇷', '🇩🇪', '🇪🇸', '🇵🇹', '🏴󠁧󠁢󠁥󠁮󠁧󠁿', '🇲🇽',
 ]
 const AVATAR_COLORS = [
-  { bg: 'linear-gradient(135deg, #003DA5, #1A5FBF)', label: 'Azul FIFA' },
+  { bg: 'linear-gradient(135deg, #003da5, #1a55bd)', label: 'Azul FIFA' },
   { bg: 'linear-gradient(135deg, #E30613, #B30010)', label: 'Rojo' },
   { bg: 'linear-gradient(135deg, #16a34a, #15803d)', label: 'Verde' },
   { bg: 'linear-gradient(135deg, #7c3aed, #6d28d9)', label: 'Violeta' },
@@ -56,9 +67,11 @@ export default function PerfilPage() {
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [name, setName] = useState('')
+  const [username, setUsername] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [usernameError, setUsernameError] = useState('')
   const [stats, setStats] = useState<Stats | null>(null)
   const [groupRanks, setGroupRanks] = useState<GroupRank[]>([])
   const [notifStatus, setNotifStatus] = useState<'checking' | 'granted' | 'denied' | 'default'>('checking')
@@ -83,6 +96,7 @@ export default function PerfilPage() {
 
       setProfile(profileData)
       setName(profileData?.full_name ?? '')
+      setUsername(profileData?.username ?? '')
       const parsed = parseAvatarConfig(profileData?.avatar_url)
       setAvatarConfig(parsed)
       if (parsed.emoji) setSelectedEmoji(parsed.emoji)
@@ -139,8 +153,21 @@ export default function PerfilPage() {
 
   const handleSave = async () => {
     if (!profile) return
+    setUsernameError('')
+    const trimmedUsername = username.trim().toLowerCase().replace(/^@/, '')
+    if (trimmedUsername && !/^[a-z0-9_]{3,20}$/.test(trimmedUsername)) {
+      setUsernameError('Solo letras, números y guión bajo. Entre 3 y 20 caracteres.')
+      return
+    }
     setSaving(true)
-    await supabase.from('profiles').update({ full_name: name.trim() }).eq('id', profile.id)
+    const updates: any = { full_name: name.trim() }
+    if (trimmedUsername) updates.username = trimmedUsername
+    const { error } = await supabase.from('profiles').update(updates).eq('id', profile.id)
+    if (error?.code === '23505') {
+      setUsernameError('Ese username ya está en uso.')
+      setSaving(false)
+      return
+    }
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -173,62 +200,145 @@ export default function PerfilPage() {
   }
 
   if (loading) {
-    return <div className="min-h-dvh flex items-center justify-center bg-app">
-      <div className="w-10 h-10 border-4 border-[#003DA5] border-t-transparent rounded-full animate-spin" />
-    </div>
+    return (
+      <div className="min-h-dvh flex items-center justify-center page-gradient">
+        <div className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#003da5", borderTopColor: "transparent" }} />
+      </div>
+    )
   }
 
   const winPct = stats && stats.total > 0 ? Math.round(((stats.exact + stats.partial) / stats.total) * 100) : 0
+  const firstName = profile?.full_name?.split(" ")[0] ?? "Perfil"
+
+  // ── Level badge ──────────────────────────────────────────────────────
+  const getLevel = () => {
+    const pts = stats?.total_points ?? 0
+    const streak = stats?.best_streak ?? 0
+    const onStreak = streak >= 3
+    if (pts === 0)   return { emoji: "✨", label: "Novato",      bg: "rgba(100,116,139,0.12)", color: "var(--color-gray-600, #535862)" }
+    if (pts < 10)   return { emoji: onStreak ? "🔥" : "🌱", label: onStreak ? "En racha" : "Aprendiz",   bg: "rgba(22,163,74,0.1)",   color: "#16a34a" }
+    if (pts < 30)   return { emoji: onStreak ? "🔥" : "⚡", label: onStreak ? "En racha" : "En forma",    bg: "rgba(217,119,6,0.1)",   color: "#d97706" }
+    if (pts < 60)   return { emoji: "🔥",   label: "Adivino",    bg: "rgba(234,88,12,0.12)",  color: "#ea580c" }
+    if (pts < 100)  return { emoji: "🏆",   label: "Experto",    bg: "rgba(0,61,165,0.1)",    color: "var(--color-brand-700, #003da5)" }
+    return           { emoji: "👑",   label: "Leyenda",    bg: "rgba(124,58,237,0.12)", color: "#7c3aed" }
+  }
+  const level = getLevel()
 
   return (
-    <div className="min-h-dvh bg-app pb-24">
+    <div className="min-h-dvh pb-24 page-gradient" style={{ fontFamily: "Inter, sans-serif" }}>
 
-      {/* ── HEADER ────────────────────────────────────────────── */}
-      <div className="bg-fifa-pattern px-5 pt-14 pb-20 flex flex-col items-center relative overflow-hidden">
-        <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/5" />
-        <div className="absolute -left-4 bottom-0 w-24 h-24 rounded-full bg-white/5" />
-        <div className="relative z-10 mb-3">
-          <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white/30 shadow-xl">
-            <AvatarDisplay config={avatarConfig} size={96} />
-          </div>
-          <button onClick={() => setShowAvatarEditor(true)}
-            className="absolute -bottom-1 -right-1 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md border-2 border-[#F0F4FF] active:scale-90 transition-transform">
-            <svg className="w-4 h-4 text-[color:var(--color-primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+      {/* ── HEADER ──────────────────────────────────────────────────────── */}
+      <div
+        className="relative px-4"
+        style={{
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 16px)",
+          paddingBottom: 20,
+        }}
+      >
+        {/* Top bar: back + actions */}
+        <div className="flex items-center justify-between mb-5">
+          <button
+            onClick={() => router.back()}
+            className="w-9 h-9 rounded-xl flex items-center justify-center active:opacity-70 transition-opacity glass-pill"
+          >
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: "#374151" }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
+
+          <div
+            className="flex items-center gap-1 px-1.5 py-1.5 rounded-2xl glass-pill"
+          >
+            <ThemeToggle variant="header" />
+            <button
+              onClick={() => router.push("/ayuda")}
+              className="w-8 h-8 rounded-xl flex items-center justify-center active:opacity-70 transition-opacity glass-btn"
+            >
+              <HelpCircle className="glass-btn" width={18} height={18} />
+            </button>
+          </div>
         </div>
-        <h1 className="text-white font-bold text-xl relative z-10">{profile?.full_name ?? 'Mi perfil'}</h1>
-        <p className="text-white/50 text-sm relative z-10">{profile?.email}</p>
+
+        {/* Avatar centrado + nombre */}
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative">
+            <div
+              className="rounded-full overflow-hidden"
+              style={{ width: 80, height: 80, border: "3px solid rgba(255,255,255,0.9)", boxShadow: "0 4px 16px rgba(0,61,165,0.15)" }}
+            >
+              <AvatarDisplay config={avatarConfig} size={80} />
+            </div>
+            <button
+              onClick={() => setShowAvatarEditor(true)}
+              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+              style={{ background: "var(--color-brand-600, #003da5)", boxShadow: "0 2px 6px rgba(0,0,0,0.2)" }}
+            >
+              <Edit01 width={12} height={12} style={{ color: "white" }} />
+            </button>
+          </div>
+
+          <div className="text-center">
+            <h1 style={{ fontFamily: "Inter, sans-serif", fontSize: 20, fontWeight: 800, color: "var(--color-gray-900, #181d27)", lineHeight: 1.2 }}>
+              {profile?.full_name ?? "Mi perfil"}
+            </h1>
+            {profile?.username && (
+              <p className="text-sm font-medium mt-0.5" style={{ color: "var(--color-gray-500, #717680)" }}>@{profile.username}</p>
+            )}
+            {/* Level badge */}
+            <div className="flex justify-center mt-2">
+              <span
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+                style={{ background: level.bg, color: level.color }}
+              >
+                {level.emoji} {level.label}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* ── AVATAR EDITOR ─────────────────────────────────────── */}
+      {/* ── AVATAR EDITOR MODAL ──────────────────────────────────────────── */}
       {showAvatarEditor && (
         <div className="fixed inset-0 z-50 flex items-end" onClick={() => setShowAvatarEditor(false)}>
           <div className="absolute inset-0 bg-black/40" />
-          <div className="relative w-full bg-surface rounded-t-3xl p-5 pb-10 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
-            <h2 className="font-bold text-gray-800 text-lg mb-4 text-center">Personalizar avatar</h2>
+          <div
+            className="relative w-full rounded-t-3xl p-5 pb-10 max-h-[85vh] overflow-y-auto"
+            style={{ background: "var(--color-surface)" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: "var(--color-gray-200, #e9eaeb)" }} />
+            <h2 className="font-bold text-lg mb-4 text-center" style={{ color: "var(--color-gray-900, #181d27)" }}>Personalizar avatar</h2>
             <div className="flex justify-center mb-5">
-              <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-[#F0F4FF]">
+              <div className="w-20 h-20 rounded-full overflow-hidden" style={{ border: "3px solid var(--color-brand-100, #d1e0ff)" }}>
                 <AvatarDisplay config={{ type: 'emoji', emoji: selectedEmoji, color: selectedColor }} size={80} />
               </div>
             </div>
-            <p className="text-xs font-bold text-gray-400 tracking-widest mb-2">ELEGÍ UN ÍCONO</p>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>Elegí un ícono</p>
             <div className="grid grid-cols-8 gap-2 mb-5">
               {PRESET_AVATARS.map(emoji => (
-                <button key={emoji} onClick={() => setSelectedEmoji(emoji)}
-                  className={`w-full aspect-square rounded-xl text-2xl flex items-center justify-center transition-all active:scale-90 ${selectedEmoji === emoji ? 'bg-[#003DA5]/10 ring-2 ring-[#003DA5]' : 'bg-gray-100'}`}>
+                <button
+                  key={emoji}
+                  onClick={() => setSelectedEmoji(emoji)}
+                  className="w-full aspect-square rounded-xl text-2xl flex items-center justify-center transition-all active:scale-90"
+                  style={{
+                    background: selectedEmoji === emoji ? "var(--color-brand-50, #eff4ff)" : "var(--color-gray-100, #f5f5f5)",
+                    outline: selectedEmoji === emoji ? "2px solid #003da5" : "none",
+                  }}
+                >
                   {emoji}
                 </button>
               ))}
             </div>
-            <p className="text-xs font-bold text-gray-400 tracking-widest mb-2">ELEGÍ UN COLOR</p>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>Elegí un color</p>
             <div className="grid grid-cols-4 gap-2 mb-6">
               {AVATAR_COLORS.map(({ bg, label }) => (
-                <button key={bg} onClick={() => setSelectedColor(bg)}
-                  className={`h-12 rounded-xl transition-all active:scale-90 ${selectedColor === bg ? 'ring-4 ring-[#003DA5] ring-offset-2' : ''}`}
-                  style={{ background: bg }} title={label}>
+                <button
+                  key={bg}
+                  onClick={() => setSelectedColor(bg)}
+                  className="h-12 rounded-xl transition-all active:scale-90"
+                  style={{ background: bg, outline: selectedColor === bg ? "3px solid #003da5" : "none", outlineOffset: 2 }}
+                  title={label}
+                >
                   {selectedColor === bg && (
                     <svg className="w-5 h-5 text-white mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -237,110 +347,177 @@ export default function PerfilPage() {
                 </button>
               ))}
             </div>
-            <button onClick={handleSaveAvatar} disabled={savingAvatar}
-              className="w-full py-4 rounded-2xl font-bold text-white text-base active:scale-95 transition-transform disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #003DA5, #1A5FBF)' }}>
+            <button
+              onClick={handleSaveAvatar}
+              disabled={savingAvatar}
+              className="w-full py-3.5 rounded-2xl font-semibold text-white text-base active:scale-95 transition-transform disabled:opacity-50"
+              style={{ background: "#003da5" }}
+            >
               {savingAvatar ? 'Guardando...' : 'Guardar avatar'}
             </button>
           </div>
         </div>
       )}
 
-      <div className="px-4 -mt-8 relative z-10 space-y-3">
+      <div className="px-4 relative z-10 space-y-4">
 
-        {/* ── ESTADÍSTICAS ──────────────────────────────────────── */}
-        {stats && (
-          <div className="rounded-3xl overflow-hidden shadow-sm"
-            style={{ background: 'linear-gradient(150deg, #0a1f5c 0%, #003DA5 60%, #1A5FBF 100%)' }}>
-
-            {/* Fila superior: puntos + racha */}
-            <div className="px-5 pt-5 pb-3 flex items-start justify-between">
-              <div>
-                <p className="text-white/50 text-xs font-bold tracking-widest mb-1">MIS ESTADÍSTICAS</p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-white font-bold text-5xl leading-tight" style={{ fontFamily: 'Bebas Neue, sans-serif' }}>
-                    {stats.total_points}
-                  </span>
-                  <span className="text-white/40 text-lg font-bold" style={{ fontFamily: 'Bebas Neue, sans-serif' }}>PTS</span>
-                </div>
-                {stats.total > 0 && (
-                  <p className="text-white/40 text-xs mt-1">{winPct}% de acierto · {stats.total} partidos jugados</p>
-                )}
+        {/* ── EDITAR PERFIL ─────────────────────────────────────────────── */}
+        <div className="card-white rounded-2xl overflow-hidden" style={{ border: "1px solid var(--color-gray-200, #e9eaeb)", boxShadow: "0 1px 3px rgba(10,13,18,0.1)" }}>
+          <div className="px-4 py-2.5 flex items-center gap-2" style={{ borderBottom: "1px solid var(--color-gray-100, #f5f5f5)" }}>
+            <UserCircle width={14} height={14} style={{ color: "var(--color-gray-400, #a4a7ae)", flexShrink: 0 }} />
+            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-gray-500, #717680)" }}>Editar perfil</span>
+          </div>
+          <div className="px-4 py-4 space-y-3">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--color-gray-500, #717680)" }}>Nombre</label>
+              <input
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="Tu nombre"
+                className="w-full rounded-xl px-4 py-3 text-sm transition-colors focus:outline-none"
+                style={{
+                  background: "var(--color-gray-50, #fafafa)",
+                  border: "1px solid var(--color-gray-200, #e9eaeb)",
+                  color: "var(--color-gray-900, #181d27)",
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--color-gray-500, #717680)" }}>Username</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>@</span>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={e => { setUsername(e.target.value); setUsernameError('') }}
+                  placeholder="tu_username"
+                  className="w-full rounded-xl pl-8 pr-4 py-3 text-sm transition-colors focus:outline-none"
+                  style={{
+                    background: "var(--color-gray-50, #fafafa)",
+                    border: `1px solid ${usernameError ? "#ef4444" : "var(--color-gray-200, #e9eaeb)"}`,
+                    color: "var(--color-gray-900, #181d27)",
+                  }}
+                />
               </div>
-              {stats.best_streak > 0 && (
-                <div className="bg-white/10 border border-white/10 rounded-2xl px-3 py-2.5 text-center min-w-[64px]">
-                  <span className="text-2xl leading-none block">🔥</span>
-                  <p className="text-white font-bold text-2xl leading-tight mt-0.5" style={{ fontFamily: 'Bebas Neue, sans-serif' }}>{stats.best_streak}</p>
-                  <p className="text-white/40 text-[10px] font-semibold uppercase tracking-wide">racha</p>
-                </div>
+              {usernameError && (
+                <p className="text-xs mt-1" style={{ color: "#ef4444" }}>{usernameError}</p>
+              )}
+            </div>
+            <button
+              onClick={handleSave}
+              disabled={saving || !name.trim()}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold text-white active:opacity-80 transition-opacity disabled:opacity-50"
+              style={{ background: "var(--color-brand-600, #003da5)" }}
+            >
+              {saving ? 'Guardando...' : saved ? '✓ Guardado' : 'Guardar cambios'}
+            </button>
+          </div>
+        </div>
+
+        {/* ── ESTADÍSTICAS ──────────────────────────────────────────────── */}
+        {stats && (
+          <div className="card-white rounded-2xl overflow-hidden" style={{ border: "1px solid var(--color-gray-200, #e9eaeb)", boxShadow: "0 1px 3px rgba(10,13,18,0.1)" }}>
+            <div className="px-4 pt-3.5 pb-1 flex items-center justify-between" style={{ borderBottom: "1px solid var(--color-gray-100, #f5f5f5)" }}>
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-gray-500, #717680)" }}>Mis estadísticas</p>
+              {stats.total > 0 && (
+                <span className="text-xs font-medium" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>{winPct}% de acierto</span>
               )}
             </div>
 
-            {/* Barra tricolor */}
-            {stats.total > 0 && (
-              <div className="px-5 pb-3">
-                <div className="h-1.5 bg-white/10 rounded-full overflow-hidden flex gap-0.5">
-                  {stats.exact > 0 && (
-                    <div className="h-full rounded-full bg-green-400" style={{ width: `${(stats.exact / stats.total) * 100}%` }} />
-                  )}
-                  {stats.partial > 0 && (
-                    <div className="h-full rounded-full bg-amber-400" style={{ width: `${(stats.partial / stats.total) * 100}%` }} />
-                  )}
-                  {stats.wrong > 0 && (
-                    <div className="h-full rounded-full bg-white/20" style={{ width: `${(stats.wrong / stats.total) * 100}%` }} />
+            {stats.total === 0 ? (
+              <div className="px-4 py-8 flex flex-col items-center gap-2 text-center">
+                <span style={{ fontSize: 32 }}>🏆</span>
+                <p className="text-sm font-semibold" style={{ color: "var(--color-gray-700, #414651)" }}>¡El torneo no empezó!</p>
+                <p className="text-xs" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>Tus estadísticas aparecen cuando se jueguen los primeros partidos el 11 Jun.</p>
+              </div>
+            ) : (
+              <>
+                {/* Points + streak */}
+                <div className="px-4 pt-4 pb-3 flex items-start justify-between" style={{ borderBottom: "1px solid var(--color-gray-100, #f5f5f5)" }}>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-0.5" style={{ color: "var(--color-gray-500, #717680)" }}>Puntos totales</p>
+                    <div className="flex items-baseline gap-1.5">
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 42, fontWeight: 800, color: "var(--color-gray-900, #181d27)", lineHeight: 1 }}>
+                        {stats.total_points}
+                      </span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 700, color: "var(--color-gray-400, #a4a7ae)" }}>pts</span>
+                    </div>
+                    <p className="text-xs mt-1" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>{stats.total} partidos jugados</p>
+                  </div>
+                  {stats.best_streak > 0 && (
+                    <div className="rounded-2xl px-3 py-2.5 text-center" style={{ background: "var(--color-brand-50, #eff4ff)", border: "1px solid var(--color-brand-100, #d1e0ff)", minWidth: 64 }}>
+                      <p className="font-bold text-2xl leading-tight" style={{ fontFamily: "Inter, sans-serif", fontWeight: 800, color: "var(--color-brand-700, #003da5)" }}>{stats.best_streak}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--color-brand-400, #528bff)" }}>racha</p>
+                    </div>
                   )}
                 </div>
-              </div>
-            )}
 
-            {/* Tiles: exactas / parciales / erróneas */}
-            <div className="grid grid-cols-3 border-t border-white/10">
-              {[
-                { value: stats.exact,   label: 'Exactas',   emoji: '🎯', color: 'text-green-300', divider: false },
-                { value: stats.partial, label: 'Parciales', emoji: '✅', color: 'text-amber-300', divider: true },
-                { value: stats.wrong,   label: 'Erróneas',  emoji: '❌', color: 'text-white/40',  divider: true },
-              ].map(({ value, label, emoji, color, divider }) => (
-                <div key={label} className={`py-4 text-center ${divider ? 'border-l border-white/10' : ''}`}>
-                  <p className={`font-bold text-2xl leading-tight ${color}`} style={{ fontFamily: 'Bebas Neue, sans-serif' }}>{value}</p>
-                  <p className="text-white/40 text-xs mt-0.5">{emoji} {label}</p>
+                {/* Stats grid */}
+                <div className="grid grid-cols-3">
+                  {[
+                    { value: stats.exact, label: 'Exactas', color: "#16a34a" },
+                    { value: stats.partial, label: 'Parciales', color: "#d97706" },
+                    { value: stats.wrong, label: 'Erróneas', color: "var(--color-gray-400, #a4a7ae)" },
+                  ].map(({ value, label, color }, i) => (
+                    <div
+                      key={label}
+                      className="py-4 text-center"
+                      style={i > 0 ? { borderLeft: "1px solid var(--color-gray-100, #f5f5f5)" } : {}}
+                    >
+                      <p className="font-bold text-2xl leading-tight" style={{ fontFamily: "Inter, sans-serif", fontWeight: 800, color }}>{value}</p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>{label}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
 
-            {stats.total === 0 && (
-              <div className="px-5 pb-5 pt-1 text-center">
-                <p className="text-white/30 text-sm">Tus stats aparecen cuando arranque el Mundial 🌍</p>
-              </div>
+                {/* Progress bar */}
+                <div className="px-4 pb-4">
+                  <div className="h-1.5 rounded-full overflow-hidden flex gap-0.5" style={{ background: "var(--color-gray-100, #f5f5f5)" }}>
+                    {stats.exact > 0 && <div className="h-full rounded-full bg-green-400" style={{ width: `${(stats.exact / stats.total) * 100}%` }} />}
+                    {stats.partial > 0 && <div className="h-full rounded-full bg-amber-400" style={{ width: `${(stats.partial / stats.total) * 100}%` }} />}
+                    {stats.wrong > 0 && <div className="h-full rounded-full" style={{ width: `${(stats.wrong / stats.total) * 100}%`, background: "var(--color-gray-200, #e9eaeb)" }} />}
+                  </div>
+                </div>
+              </>
             )}
           </div>
         )}
 
-        {/* ── RANKING POR GRUPO ─────────────────────────────────── */}
+        {/* ── RANKING POR GRUPO ─────────────────────────────────────────── */}
         {groupRanks.length > 0 && (
-          <div className="bg-surface rounded-3xl shadow-sm overflow-hidden">
-            <div className="px-5 pt-4 pb-3 border-b border-soft">
-              <h2 className="font-bold text-[color:var(--color-text)] text-base flex items-center gap-2">🏆 Ranking por grupo</h2>
+          <div className="card-white rounded-2xl overflow-hidden" style={{ border: "1px solid var(--color-gray-200, #e9eaeb)", boxShadow: "0 1px 3px rgba(10,13,18,0.1)" }}>
+            <div className="px-4 py-2.5 flex items-center gap-2" style={{ borderBottom: "1px solid var(--color-gray-100, #f5f5f5)" }}>
+              <Trophy01 width={14} height={14} style={{ color: "var(--color-gray-400, #a4a7ae)", flexShrink: 0 }} />
+              <span className="flex-1 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-gray-500, #717680)" }}>Ranking por grupo</span>
             </div>
-            <div className="divide-y divide-soft">
-              {groupRanks.map(gr => {
+            <div>
+              {groupRanks.map((gr, i) => {
                 const medal = gr.rank === 1 ? '🥇' : gr.rank === 2 ? '🥈' : gr.rank === 3 ? '🥉' : null
                 return (
-                  <button key={gr.group_id} onClick={() => router.push(`/grupos/${gr.group_id}`)}
-                    className="w-full flex items-center gap-3 px-5 py-3.5 active:bg-surface-2 transition-colors text-left">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-lg"
-                      style={{ background: 'linear-gradient(135deg, #003DA5, #1A5FBF)' }}>
-                      {medal ?? <span className="text-white font-bold text-sm">#{gr.rank}</span>}
+                  <button
+                    key={gr.group_id}
+                    onClick={() => router.push(`/grupos/${gr.group_id}`)}
+                    className="w-full flex items-center gap-3 px-4 py-3 active:opacity-70 transition-opacity text-left"
+                    style={i < groupRanks.length - 1 ? { borderBottom: "1px solid var(--color-gray-100, #f5f5f5)" } : {}}
+                  >
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
+                      style={{ background: "var(--color-brand-50, #eff4ff)", border: "1px solid var(--color-brand-100, #d1e0ff)" }}
+                    >
+                      {medal ?? <span className="font-bold text-sm" style={{ color: "var(--color-brand-700, #003da5)" }}>#{gr.rank}</span>}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-[color:var(--color-text)] text-sm truncate">{gr.group_name}</p>
-                      <p className="text-[color:var(--color-muted)] text-xs">
+                      <p className="text-sm font-semibold truncate" style={{ color: "var(--color-gray-900, #181d27)" }}>{gr.group_name}</p>
+                      <p className="text-xs" style={{ color: "var(--color-gray-500, #717680)" }}>
                         {gr.rank > 0 ? `Puesto ${gr.rank} de ${gr.total_members}` : 'Sin predicciones aún'}
                       </p>
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="font-bold text-[color:var(--color-primary)] text-xl leading-tight" style={{ fontFamily: 'Bebas Neue, sans-serif' }}>{gr.points}</p>
-                      <p className="text-xs text-[color:var(--color-muted)]">pts</p>
+                    <div className="text-right flex-shrink-0 flex items-baseline gap-0.5 mr-1">
+                      <span className="font-bold text-xl tabular-nums" style={{ fontFamily: "Inter, sans-serif", fontWeight: 800, color: "var(--color-brand-700, #003da5)" }}>{gr.points}</span>
+                      <span className="text-xs" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>pts</span>
                     </div>
+                    <ChevronRight width={14} height={14} style={{ color: "var(--color-gray-300, #d5d7da)", flexShrink: 0 }} />
                   </button>
                 )
               })}
@@ -348,110 +525,84 @@ export default function PerfilPage() {
           </div>
         )}
 
-        {/* ── EDITAR PERFIL ─────────────────────────────────────── */}
-        <div className="bg-surface rounded-3xl shadow-sm overflow-hidden">
-          <div className="px-5 pt-4 pb-3 border-b border-soft">
-            <h2 className="font-bold text-[color:var(--color-text)] text-base">Editar perfil</h2>
-          </div>
-          <div className="px-5 py-4 space-y-3">
-            <div>
-              <label className="block text-xs font-bold text-gray-400 mb-1.5 tracking-widest uppercase">Nombre</label>
-              <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Tu nombre"
-                className="w-full bg-surface-2 border-2 border-transparent rounded-2xl px-4 py-3.5 text-[color:var(--color-text)] focus:outline-none focus:border-[#003DA5] transition-colors" />
-            </div>
-            <button onClick={handleSave} disabled={saving || !name.trim()}
-              className="w-full py-3.5 rounded-2xl font-semibold text-white transition-all active:scale-95 disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #003DA5, #1A5FBF)' }}>
-              {saving ? 'Guardando...' : saved ? '✅ Guardado' : 'Guardar cambios'}
-            </button>
-          </div>
-        </div>
+        {/* ── CONFIGURACIÓN ─────────────────────────────────────────────── */}
+        <div className="card-white rounded-2xl overflow-hidden" style={{ border: "1px solid var(--color-gray-200, #e9eaeb)", boxShadow: "0 1px 3px rgba(10,13,18,0.1)" }}>
 
-        {/* ── REGLAS (compacto, clickeable → /ayuda) ────────────── */}
-        <button onClick={() => router.push('/ayuda')}
-          className="w-full text-left bg-surface rounded-3xl shadow-sm overflow-hidden active:scale-95 transition-transform">
-          <div className="px-5 pt-4 pb-3 border-b border-soft flex items-center justify-between">
-            <h2 className="font-bold text-[color:var(--color-text)] text-base">📋 Reglas del prode</h2>
-            <span className="text-[color:var(--color-primary)] text-xs font-semibold flex items-center gap-0.5">
-              Ver todo
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </span>
-          </div>
-          {/* Pills de puntos */}
-          <div className="px-5 pt-3 pb-2 flex gap-2">
-            {[
-              { pts: '3', label: 'Exacto',  bg: '#003DA5', text: 'white' },
-              { pts: '1', label: 'Ganador', bg: '#F59E0B', text: 'white' },
-              { pts: '0', label: 'Error',   bg: '#F3F4F6', text: '#9CA3AF' },
-            ].map(({ pts, label, bg, text }) => (
-              <div key={pts} className="flex-1 rounded-2xl py-2.5 text-center" style={{ background: bg }}>
-                <p className="font-bold text-xl leading-tight" style={{ color: text, fontFamily: 'Bebas Neue, sans-serif' }}>{pts} pts</p>
-                <p className="text-xs font-semibold mt-0.5" style={{ color: text }}>{label}</p>
+          {/* Notificaciones */}
+          {notifStatus !== 'checking' && (
+            <div className="px-4 py-3.5 flex items-center gap-3" style={{ borderBottom: "1px solid var(--color-gray-100, #f5f5f5)" }}>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "var(--color-gray-100, #f5f5f5)" }}>
+                {notifStatus === 'granted'
+                  ? <Bell01 width={16} height={16} style={{ color: "var(--color-brand-600, #003da5)" }} />
+                  : <BellOff01 width={16} height={16} style={{ color: "var(--color-gray-400, #a4a7ae)" }} />
+                }
               </div>
-            ))}
-          </div>
-          <p className="px-5 pb-4 text-xs text-gray-400 flex items-center gap-1.5 mt-1">
-            <span>⏰</span>
-            Hasta <strong className="text-[color:var(--color-text-2)]">24hs antes</strong> de cada partido
-          </p>
-        </button>
-
-        {/* ── NOTIFICACIONES ────────────────────────────────────── */}
-        {notifStatus !== 'checking' && (
-          <div className="bg-surface rounded-3xl shadow-sm p-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-surface-2 flex items-center justify-center text-xl flex-shrink-0">🔔</div>
-                <div>
-                  <p className="font-bold text-[color:var(--color-text)] text-sm">Notificaciones</p>
-                  <p className="text-xs text-[color:var(--color-muted)]">
-                    {notifStatus === 'denied' ? 'Bloqueadas en este navegador'
-                      : notifStatus === 'granted' ? 'Activadas'
-                      : 'Desactivadas'}
-                  </p>
-                </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold" style={{ color: "var(--color-gray-900, #181d27)" }}>Notificaciones</p>
+                <p className="text-xs" style={{ color: "var(--color-gray-500, #717680)" }}>
+                  {notifStatus === 'denied' ? 'Bloqueadas en este navegador'
+                    : notifStatus === 'granted' ? 'Activadas'
+                    : 'Desactivadas'}
+                </p>
               </div>
               {notifStatus === 'denied' ? (
-                <span className="text-xs text-red-400 font-semibold bg-red-50 px-2.5 py-1 rounded-lg">Bloqueadas</span>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-lg" style={{ background: "#fef2f2", color: "#dc2626" }}>Bloqueadas</span>
               ) : (
-                <button onClick={handleNotifToggle} disabled={notifLoading}
-                  className={`relative w-12 h-6 rounded-full transition-colors duration-200 flex-shrink-0 disabled:opacity-50 ${notifStatus === 'granted' ? 'bg-[#003DA5]' : 'bg-gray-200'}`}>
+                <button
+                  onClick={handleNotifToggle}
+                  disabled={notifLoading}
+                  className="relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 disabled:opacity-50"
+                  style={{ background: notifStatus === 'granted' ? "var(--color-brand-600, #003da5)" : "var(--color-gray-200, #e9eaeb)" }}
+                >
                   {notifLoading
                     ? <span className="absolute inset-0 flex items-center justify-center">
                         <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       </span>
-                    : <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${notifStatus === 'granted' ? 'translate-x-6' : 'translate-x-0'}`} />
+                    : <span
+                        className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
+                        style={{ transform: notifStatus === 'granted' ? 'translateX(20px)' : 'translateX(0)' }}
+                      />
                   }
                 </button>
               )}
             </div>
-            {notifStatus === 'denied' && (
-              <p className="mt-2.5 text-xs text-gray-400 leading-relaxed">
-                Para habilitarlas, gestioná los permisos en la configuración del navegador.
-              </p>
-            )}
-          </div>
-        )}
+          )}
 
-        {/* ── APARIENCIA ────────────────────────────────────────── */}
-        <div className="bg-surface rounded-3xl shadow-sm p-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-surface-2 flex items-center justify-center text-xl flex-shrink-0">🎨</div>
-              <div>
-                <p className="font-bold text-[color:var(--color-text)] text-sm">Modo oscuro</p>
-                <p className="text-xs text-[color:var(--color-muted)]">Cambia el tema de la app</p>
-              </div>
+          {/* Apariencia */}
+          <div className="px-4 py-3.5 flex items-center gap-3" style={{ borderBottom: "1px solid var(--color-gray-100, #f5f5f5)" }}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "var(--color-gray-100, #f5f5f5)" }}>
+              <Moon01 width={16} height={16} style={{ color: "var(--color-gray-500, #717680)" }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold" style={{ color: "var(--color-gray-900, #181d27)" }}>Modo oscuro</p>
+              <p className="text-xs" style={{ color: "var(--color-gray-500, #717680)" }}>Cambia el tema de la app</p>
             </div>
             <ThemeToggle variant="settings" />
           </div>
+
+          {/* Ayuda */}
+          <button
+            onClick={() => router.push('/ayuda')}
+            className="w-full px-4 py-3.5 flex items-center gap-3 active:opacity-70 transition-opacity"
+          >
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "var(--color-gray-100, #f5f5f5)" }}>
+              <HelpCircle width={16} height={16} style={{ color: "var(--color-gray-500, #717680)" }} />
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-sm font-semibold" style={{ color: "var(--color-gray-900, #181d27)" }}>Ayuda y preguntas frecuentes</p>
+              <p className="text-xs" style={{ color: "var(--color-gray-500, #717680)" }}>Cómo funciona el puntaje y más</p>
+            </div>
+            <ChevronRight width={14} height={14} style={{ color: "var(--color-gray-300, #d5d7da)" }} />
+          </button>
         </div>
 
-        {/* ── CERRAR SESIÓN ─────────────────────────────────────── */}
-        <button onClick={handleLogout}
-          className="w-full py-4 rounded-2xl font-semibold text-[#E30613] border-2 border-[#E30613]/20 bg-surface active:scale-95 transition-transform">
+        {/* ── CERRAR SESIÓN ─────────────────────────────────────────────── */}
+        <button
+          onClick={handleLogout}
+          className="w-full py-3 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2 active:opacity-80 transition-opacity"
+          style={{ background: "var(--color-gray-50, #fafafa)", border: "1px solid #fecdd3", color: "#e11d48", boxShadow: "0 1px 3px rgba(10,13,18,0.06)" }}
+        >
+          <LogOut01 width={16} height={16} />
           Cerrar sesión
         </button>
 

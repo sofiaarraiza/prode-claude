@@ -4,6 +4,32 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { supabase, type Group, type LeaderboardEntry } from "@/lib/supabase";
 import BottomNav from "@/components/layout/BottomNav";
+import {
+  Edit01,
+  Users01,
+  Trophy01,
+  ChevronRight,
+  Copy01,
+  Check,
+  BarChart07,
+} from "@untitledui/icons";
+
+// Position chip — matches /tabla style
+function PositionChip({ pos }: { pos: number }) {
+  const cfg =
+    pos === 1 ? { bg: "#C8A84B", color: "white" }
+    : pos === 2 ? { bg: "var(--color-gray-400, #a4a7ae)", color: "white" }
+    : pos === 3 ? { bg: "#b45309", color: "white" }
+    : { bg: "var(--color-gray-100, #f5f5f5)", color: "var(--color-gray-500, #717680)" };
+  return (
+    <div
+      className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold"
+      style={{ background: cfg.bg, color: cfg.color }}
+    >
+      {pos}
+    </div>
+  );
+}
 
 type Member = {
   user_id: string;
@@ -11,6 +37,59 @@ type Member = {
   avatar_url: string | null;
   email: string | null;
 };
+
+function AvatarCircle({
+  member,
+  size = 40,
+  ring = false,
+}: {
+  member: Pick<Member, "avatar_url" | "full_name" | "email">;
+  size?: number;
+  ring?: boolean;
+}) {
+  const av = member.avatar_url;
+  const initials = (member.full_name ?? member.email ?? "U")[0].toUpperCase();
+
+  let content: React.ReactNode;
+  if (av?.startsWith("avatar:")) {
+    try {
+      const cfg = JSON.parse(av.slice(7));
+      content = (
+        <div
+          className="w-full h-full flex items-center justify-center"
+          style={{ background: cfg.color }}
+        >
+          <span style={{ fontSize: size * 0.45 }}>{cfg.emoji}</span>
+        </div>
+      );
+    } catch {
+      content = null;
+    }
+  } else if (av) {
+    content = (
+      <img src={av} alt="" className="w-full h-full object-cover" />
+    );
+  }
+
+  return (
+    <div
+      className="rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
+      style={{
+        width: size,
+        height: size,
+        background: "linear-gradient(135deg, var(--color-brand-600, #003da5), #1a55bd)",
+        outline: ring ? "2px solid var(--color-brand-600, #003da5)" : "none",
+        outlineOffset: 2,
+      }}
+    >
+      {content ?? (
+        <span className="text-white font-bold" style={{ fontSize: size * 0.38 }}>
+          {initials}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export default function GrupoDetailPage() {
   const router = useRouter();
@@ -24,38 +103,22 @@ export default function GrupoDetailPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-
-  // Edit mode
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState("");
   const [savingName, setSavingName] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
-  const [showMembers, setShowMembers] = useState(false);
 
   useEffect(() => {
     const load = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
-        router.replace("/auth/login");
-        return;
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.replace("/auth/login"); return; }
       setCurrentUserId(session.user.id);
 
-      const [{ data: grp }, { data: lb }, { data: memberData }] =
-        await Promise.all([
-          supabase.from("groups").select("*").eq("id", groupId).single(),
-          supabase
-            .from("leaderboard")
-            .select("*")
-            .eq("group_id", groupId)
-            .order("total_points", { ascending: false }),
-          supabase
-            .from("group_members")
-            .select("user_id, profiles:user_id(full_name, avatar_url, email)")
-            .eq("group_id", groupId),
-        ]);
+      const [{ data: grp }, { data: lb }, { data: memberData }] = await Promise.all([
+        supabase.from("groups").select("*").eq("id", groupId).single(),
+        supabase.from("leaderboard").select("*").eq("group_id", groupId).order("total_points", { ascending: false }),
+        supabase.from("group_members").select("user_id, profiles:user_id(full_name, avatar_url, email)").eq("group_id", groupId),
+      ]);
 
       setGroup(grp);
       setLeaderboard(lb ?? []);
@@ -68,20 +131,18 @@ export default function GrupoDetailPage() {
         email: m.profiles?.email ?? null,
       }));
       setMembers(mems);
-
-      // Check if current user is admin (creator)
       setIsAdmin(grp?.admin_id === session.user.id);
-
       setLoading(false);
     };
     load();
   }, [groupId, router]);
 
-  const copyCode = () => {
+  const copyLink = () => {
     if (!group) return;
-    navigator.clipboard.writeText(group.invite_code);
+    const joinUrl = `${window.location.origin}/grupos/unirse?code=${group.invite_code}`;
+    navigator.clipboard.writeText(joinUrl);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 2500);
   };
 
   const shareWhatsApp = () => {
@@ -94,10 +155,7 @@ export default function GrupoDetailPage() {
   const handleSaveName = async () => {
     if (!group || !newName.trim()) return;
     setSavingName(true);
-    await supabase
-      .from("groups")
-      .update({ name: newName.trim() })
-      .eq("id", group.id);
+    await supabase.from("groups").update({ name: newName.trim() }).eq("id", group.id);
     setGroup((prev) => (prev ? { ...prev, name: newName.trim() } : prev));
     setSavingName(false);
     setEditingName(false);
@@ -106,53 +164,26 @@ export default function GrupoDetailPage() {
   const handleRemoveMember = async (userId: string) => {
     if (!confirm("¿Seguro que querés sacar a este jugador del grupo?")) return;
     setRemovingId(userId);
-    await supabase
-      .from("group_members")
-      .delete()
-      .eq("group_id", groupId)
-      .eq("user_id", userId);
+    await supabase.from("group_members").delete().eq("group_id", groupId).eq("user_id", userId);
     setMembers((prev) => prev.filter((m) => m.user_id !== userId));
     setLeaderboard((prev) => prev.filter((e) => e.user_id !== userId));
     setRemovingId(null);
   };
 
-  const medalEmoji = (pos: number) => {
-    if (pos === 0) return "🥇";
-    if (pos === 1) return "🥈";
-    if (pos === 2) return "🥉";
-    return `${pos + 1}`;
-  };
-
-  const getAvatarDisplay = (member: Member) => {
-    if (!member.avatar_url) return null;
-    if (member.avatar_url.startsWith("avatar:")) {
-      try {
-        const cfg = JSON.parse(member.avatar_url.slice(7));
-        return { type: "emoji", emoji: cfg.emoji, color: cfg.color };
-      } catch {
-        return null;
-      }
-    }
-    return { type: "photo", url: member.avatar_url };
-  };
-
   if (loading) {
     return (
-      <div className="min-h-dvh bg-app flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-[#003DA5] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-dvh flex items-center justify-center page-gradient">
+        <div className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--color-brand-600, #003da5)", borderTopColor: "transparent" }} />
       </div>
     );
   }
 
   if (!group) {
     return (
-      <div className="min-h-dvh bg-app flex items-center justify-center px-5">
+      <div className="min-h-dvh flex items-center justify-center page-gradient px-5">
         <div className="text-center">
-          <p className="text-gray-500 mb-4">Grupo no encontrado</p>
-          <button
-            onClick={() => router.push("/grupos")}
-            className="text-[color:var(--color-primary)] font-semibold"
-          >
+          <p className="text-sm mb-4" style={{ color: "var(--color-gray-500, #717680)" }}>Grupo no encontrado</p>
+          <button onClick={() => router.push("/grupos")} className="text-sm font-semibold" style={{ color: "var(--color-brand-600, #003da5)" }}>
             Volver
           </button>
         </div>
@@ -160,408 +191,303 @@ export default function GrupoDetailPage() {
     );
   }
 
-  return (
-    <div className="min-h-dvh bg-app pb-24">
-      {/* Header — sin botón volver, nombre editable para admin */}
-      <div className="bg-fifa-pattern px-5 pt-14 pb-14 relative overflow-hidden">
-        <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/5" />
+  const joinUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/grupos/unirse?code=${group.invite_code}`;
 
-        <div className="flex items-start gap-3 mb-5 relative z-10">
-          {/* Back button */}
+  return (
+    <div className="min-h-dvh pb-24 page-gradient" style={{ fontFamily: "Inter, sans-serif" }}>
+
+      {/* ── HEADER ──────────────────────────────────────────────────────── */}
+      <div
+        className="relative px-4"
+        style={{
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 16px)",
+          paddingBottom: 20,
+        }}
+      >
+        {/* Top bar */}
+        <div className="flex items-center justify-between mb-5">
           <button
             onClick={() => router.back()}
-            className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white/10 text-white active:scale-90 transition-transform mt-0.5"
+            className="w-9 h-9 rounded-xl flex items-center justify-center active:opacity-70 transition-opacity glass-pill"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="glass-btn">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <div className="flex-1 min-w-0">
-            <p className="text-white/60 text-xs tracking-widest mb-1">GRUPO</p>
-            {editingName ? (
-              <div className="flex items-center gap-2">
-                <input
-                  autoFocus
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  className="bg-white/20 text-white font-bold text-xl rounded-xl px-3 py-1.5 flex-1 min-w-0 focus:outline-none focus:bg-white/30"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSaveName();
-                    if (e.key === "Escape") setEditingName(false);
-                  }}
-                />
-                <button
-                  onClick={handleSaveName}
-                  disabled={savingName}
-                  className="bg-surface text-[color:var(--color-primary)] text-xs font-bold px-3 py-1.5 rounded-xl active:scale-95 transition-transform disabled:opacity-50"
-                >
-                  {savingName ? "..." : "✓"}
-                </button>
-                <button
-                  onClick={() => setEditingName(false)}
-                  className="text-white/60 text-xs px-2 py-1.5"
-                >
-                  ✕
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <h1 className="text-white font-bold text-xl leading-tight truncate">
-                  {group.name}
-                </h1>
-                {isAdmin && (
-                  <button
-                    onClick={() => setEditingName(true)}
-                    className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center active:scale-90 transition-transform flex-shrink-0"
-                  >
-                    <svg
-                      className="w-3.5 h-3.5 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                      />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
 
-          {/* Miembros count */}
-          <button
-            onClick={() => setShowMembers(true)}
-            className="flex-shrink-0 bg-white/20 rounded-2xl px-3 py-2 text-center active:scale-95 transition-transform ml-3"
-          >
-            <p
-              className="text-white font-bold text-lg leading-tight"
-              style={{ fontFamily: "Bebas Neue, sans-serif" }}
-            >
-              {members.length}
-            </p>
-            <p className="text-white/60 text-xs">jugadores</p>
-          </button>
+          {/* Members avatars pill */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl glass-pill">
+            <Users01 className="glass-btn" width={15} height={15} />
+            <span className="text-xs font-semibold glass-btn">{members.length} jugadores</span>
+          </div>
         </div>
 
-        {/* Invitar */}
-        <div className="bg-white/10 rounded-2xl p-4 relative z-10">
-          <div className="flex items-center gap-2 mb-3">
-            <svg
-              className="w-4 h-4 text-white/70"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+        {/* Group name + admin edit */}
+        <div className="mb-1">
+          <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "var(--color-gray-500, #717680)", letterSpacing: "0.12em" }}>
+            Grupo
+          </p>
+          {editingName ? (
+            <div className="flex items-center gap-2">
+              <input
+                autoFocus
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className="flex-1 rounded-xl px-3 py-2 text-lg font-extrabold focus:outline-none"
+                style={{
+                  background: "var(--color-gray-100, #f5f5f5)",
+                  color: "var(--color-gray-900, #181d27)",
+                  border: "1px solid var(--color-brand-300, #84adff)",
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveName();
+                  if (e.key === "Escape") setEditingName(false);
+                }}
               />
-            </svg>
-            <p className="text-white font-bold text-sm tracking-wide">
-              INVITAR AMIGOS
-            </p>
-          </div>
-          <div className="bg-white/10 rounded-xl px-4 py-3 flex items-center justify-between mb-3">
-            <div>
-              <p className="text-white/50 text-xs mb-0.5">Código del grupo</p>
-              <p
-                className="text-white font-bold text-2xl tracking-widest"
-                style={{ fontFamily: "Bebas Neue, sans-serif" }}
+              <button
+                onClick={handleSaveName}
+                disabled={savingName}
+                className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-95 disabled:opacity-50 transition-transform"
+                style={{ background: "var(--color-brand-600, #003da5)" }}
               >
-                {group.invite_code}
-              </p>
-            </div>
-            <button
-              onClick={copyCode}
-              className="flex items-center gap-1.5 bg-white/20 text-white text-xs font-semibold px-3 py-2 rounded-xl active:scale-95 transition-all"
-            >
-              {copied ? (
-                <>
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  Copiado
-                </>
-              ) : (
-                <>
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                    />
-                  </svg>
-                  Copiar
-                </>
-              )}
-            </button>
-          </div>
-          <button
-            onClick={shareWhatsApp}
-            className="w-full flex items-center justify-center gap-2 bg-[#25D366] text-white text-sm font-bold px-4 py-3 rounded-xl active:scale-95 transition-all"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-            </svg>
-            Invitar por WhatsApp
-          </button>
-        </div>
-      </div>
-
-      {/* Members modal */}
-      {showMembers && (
-        <div
-          className="fixed inset-0 z-50 flex items-end"
-          onClick={() => setShowMembers(false)}
-        >
-          <div className="absolute inset-0 bg-black/40" />
-          <div
-            className="relative w-full bg-surface rounded-t-3xl p-5 pb-10 max-h-[75vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="w-10 h-1 bg-surface-3 rounded-full mx-auto mb-4" />
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-[color:var(--color-text)] text-lg">
-                👥 Jugadores ({members.length})
-              </h2>
-              {isAdmin && (
-                <span className="text-xs text-[color:var(--color-muted)] bg-surface-2 px-2 py-1 rounded-full">
-                  Sos el admin
-                </span>
-              )}
-            </div>
-            <div className="space-y-2">
-              {members.map((member) => {
-                const avatarData = getAvatarDisplay(member);
-                const isMe = member.user_id === currentUserId;
-                return (
-                  <div
-                    key={member.user_id}
-                    className={`flex items-center gap-3 rounded-2xl px-4 py-3 ${isMe ? "bg-surface-2" : "bg-surface-2/60"}`}
-                  >
-                    <div
-                      className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0"
-                      style={{
-                        background: "linear-gradient(135deg, #003DA5, #1A5FBF)",
-                      }}
-                    >
-                      {avatarData?.type === "photo" ? (
-                        <img
-                          src={avatarData.url}
-                          alt=""
-                          className="w-full h-full object-cover"
-                        />
-                      ) : avatarData?.type === "emoji" ? (
-                        <div
-                          className="w-full h-full flex items-center justify-center"
-                          style={{ background: avatarData.color }}
-                        >
-                          <span className="text-xl">{avatarData.emoji}</span>
-                        </div>
-                      ) : (
-                        <span className="w-full h-full flex items-center justify-center text-white font-bold text-sm">
-                          {(member.full_name ??
-                            member.email ??
-                            "U")[0].toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-[color:var(--color-text)] text-sm truncate">
-                        {member.full_name ?? member.email ?? "Jugador"}
-                        {isMe && (
-                          <span className="text-xs text-[color:var(--color-muted)] ml-1">
-                            (yo)
-                          </span>
-                        )}
-                        {group.admin_id === member.user_id && (
-                          <span className="text-xs text-[color:var(--color-primary)] ml-1">
-                            · admin
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    {isAdmin && !isMe && (
-                      <button
-                        onClick={() => handleRemoveMember(member.user_id)}
-                        disabled={removingId === member.user_id}
-                        className="text-xs text-red-400 font-semibold px-2 py-1 rounded-lg bg-red-50 active:scale-95 transition-transform disabled:opacity-50"
-                      >
-                        {removingId === member.user_id ? "..." : "Sacar"}
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="px-5 -mt-4 relative z-10">
-        {/* Quick action */}
-        <button
-          onClick={() => router.push(`/predicciones?grupo=${groupId}`)}
-          className="w-full rounded-3xl p-5 text-left mb-4 active:scale-95 transition-transform shadow-sm relative overflow-hidden"
-          style={{ background: "linear-gradient(135deg, #E30613, #B30010)" }}
-        >
-          <div className="absolute -right-4 -bottom-4 text-8xl opacity-10 select-none">
-            ⚽
-          </div>
-          <p className="text-white/70 text-xs font-bold tracking-widest mb-1">
-            FASE DE GRUPOS
-          </p>
-          <h3 className="text-white font-bold text-xl mb-1">
-            Cargar predicciones
-          </h3>
-          <p className="text-white/70 text-sm">
-            Predecí los resultados para este grupo
-          </p>
-          <div className="flex items-center gap-1 mt-3">
-            <span className="text-white text-sm font-semibold">
-              Ver partidos
-            </span>
-            <svg
-              className="w-4 h-4 text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-          </div>
-        </button>
-
-        {/* Leaderboard */}
-        <div className="bg-surface rounded-3xl shadow-sm overflow-hidden">
-          <div className="px-5 pt-5 pb-3 border-b border-soft">
-            <h2 className="font-bold text-[color:var(--color-text)] text-lg flex items-center gap-2">
-              <span>🏆</span> Tabla de posiciones
-            </h2>
-          </div>
-          {leaderboard.length === 0 ? (
-            <div className="text-center py-10 px-5">
-              <span className="text-4xl block mb-3">📊</span>
-              <p className="text-[color:var(--color-muted)] text-sm">
-                Todavía no hay predicciones cargadas. Los puntos van a aparecer
-                cuando se jueguen los primeros partidos.
-              </p>
+                <Check width={16} height={16} style={{ color: "white" }} />
+              </button>
+              <button
+                onClick={() => setEditingName(false)}
+                className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-95 transition-transform"
+                style={{ background: "var(--color-gray-100, #f5f5f5)" }}
+              >
+                <span style={{ color: "var(--color-gray-500, #717680)", fontSize: 14 }}>✕</span>
+              </button>
             </div>
           ) : (
-            <div className="divide-y divide-soft">
-              {leaderboard.map((entry, index) => {
-                const isMe = entry.user_id === currentUserId;
-                const medal = medalEmoji(index);
-                return (
-                  <div
-                    key={entry.user_id}
-                    className={`flex items-center gap-3 px-5 py-4 ${isMe ? "bg-surface-2" : ""}`}
-                  >
-                    <div className="w-8 text-center text-lg">
-                      {["🥇", "🥈", "🥉"].includes(medal) ? (
-                        <span className="text-xl">{medal}</span>
-                      ) : (
-                        <span className="text-[color:var(--color-muted)] font-bold text-sm">
-                          {medal}
-                        </span>
-                      )}
-                    </div>
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 ${isMe ? "ring-2 ring-[#003DA5]" : ""}`}
-                      style={{
-                        background: "linear-gradient(135deg, #003DA5, #1A5FBF)",
-                      }}
-                    >
-                      {entry.avatar_url ? (
-                        <img
-                          src={entry.avatar_url}
-                          alt=""
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-white font-bold text-sm">
-                          {(entry.full_name ?? "U")[0]}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p
-                        className={`font-semibold text-sm truncate ${isMe ? "text-[color:var(--color-primary)]" : "text-[color:var(--color-text)]"}`}
-                      >
-                        {entry.full_name ?? "Jugador"}{" "}
-                        {isMe && (
-                          <span className="text-xs text-[color:var(--color-muted)]">
-                            (yo)
-                          </span>
-                        )}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-green-600">
-                          ✅ {entry.exact_results}
-                        </span>
-                        <span className="text-xs text-amber-500">
-                          🟡 {entry.partial_results}
-                        </span>
-                        <span className="text-xs text-[color:var(--color-muted)]">
-                          ❌ {entry.wrong_results}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p
-                        className="font-display text-2xl text-[color:var(--color-primary)]"
-                        style={{ fontFamily: "Bebas Neue, sans-serif" }}
-                      >
-                        {entry.total_points}
-                      </p>
-                      <p className="text-xs text-[color:var(--color-muted)]">
-                        pts
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="flex items-center gap-2">
+              <h1 style={{ fontFamily: "Inter, sans-serif", fontSize: 26, fontWeight: 800, color: "var(--color-gray-900, #181d27)", lineHeight: 1.15 }}>
+                {group.name}
+              </h1>
+              {isAdmin && (
+                <button
+                  onClick={() => setEditingName(true)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center active:scale-90 transition-transform glass-pill"
+                >
+                  <Edit01 width={13} height={13} className="glass-btn" />
+                </button>
+              )}
             </div>
           )}
         </div>
+      </div>
+
+      <div className="px-4 space-y-4">
+
+        {/* ── CTA PREDICCIONES ─────────────────────────────────────────── */}
+        <button
+          onClick={() => router.push(`/predicciones?grupo=${groupId}`)}
+          className="w-full rounded-2xl text-left active:scale-[0.98] transition-transform relative overflow-hidden"
+          style={{
+            background: "linear-gradient(135deg, #2a7ca8 0%, #4a9fc0 40%, #75c2e0 100%)",
+            boxShadow: "0 4px 14px rgba(42,124,168,0.35)",
+          }}
+        >
+          <div className="absolute -right-4 -bottom-4 text-[80px] opacity-10 select-none pointer-events-none">⚽</div>
+          <div className="px-5 py-4 flex items-center gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider mb-0.5" style={{ color: "rgba(255,255,255,0.65)" }}>
+                Fase de grupos
+              </p>
+              <h3 className="font-bold text-lg text-white leading-tight">Cargá tus predicciones</h3>
+              <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.65)" }}>72 partidos · Apertura 11 Jun 2026</p>
+            </div>
+            <div className="ml-auto flex-shrink-0">
+              <div
+                className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5"
+                style={{ background: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.1)" }}
+              >
+                <span className="text-xs font-semibold" style={{ color: "#2a7ca8" }}>Empezar</span>
+                <ChevronRight width={12} height={12} style={{ color: "#2a7ca8" }} />
+              </div>
+            </div>
+          </div>
+        </button>
+
+        {/* ── INVITAR ──────────────────────────────────────────────────── */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-2.5" style={{ color: "var(--color-gray-500, #717680)" }}>
+            Invitar amigos
+          </p>
+          <div
+            className="card-white rounded-2xl overflow-hidden"
+            style={{ border: "1px solid var(--color-gray-200, #e9eaeb)", boxShadow: "0 1px 3px rgba(10,13,18,0.08)" }}
+          >
+            {/* Link row */}
+            <div className="px-4 py-3.5 flex items-center gap-3" style={{ borderBottom: "1px solid var(--color-gray-100, #f5f5f5)" }}>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium mb-0.5" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>Link de invitación</p>
+                <p className="text-xs font-semibold truncate" style={{ color: "var(--color-gray-700, #414651)" }}>
+                  {joinUrl}
+                </p>
+              </div>
+              <button
+                onClick={copyLink}
+                className="flex items-center gap-1.5 rounded-xl px-3 py-2 flex-shrink-0 active:scale-95 transition-all"
+                style={{
+                  background: copied ? "rgba(22,163,74,0.1)" : "var(--color-brand-50, #eff4ff)",
+                  color: copied ? "#16a34a" : "var(--color-brand-600, #003da5)",
+                  border: `1px solid ${copied ? "rgba(22,163,74,0.2)" : "var(--color-brand-100, #d1e0ff)"}`,
+                }}
+              >
+                {copied
+                  ? <><Check width={14} height={14} /><span className="text-xs font-semibold">Copiado</span></>
+                  : <><Copy01 width={14} height={14} /><span className="text-xs font-semibold">Copiar</span></>
+                }
+              </button>
+            </div>
+
+            {/* WhatsApp row */}
+            <button
+              onClick={shareWhatsApp}
+              className="w-full flex items-center gap-3 px-4 py-3.5 active:opacity-70 transition-opacity"
+            >
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#dcfce7" }}>
+                <svg className="w-4 h-4" style={{ color: "#16a34a" }} viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                </svg>
+              </div>
+              <span className="flex-1 text-sm font-semibold text-left" style={{ color: "var(--color-gray-800, #1d2939)" }}>
+                Compartir por WhatsApp
+              </span>
+              <ChevronRight width={14} height={14} style={{ color: "var(--color-gray-300, #d5d7da)" }} />
+            </button>
+          </div>
+        </div>
+
+        {/* ── PARTICIPANTES ────────────────────────────────────────────── */}
+        <div>
+          <div className="flex items-center justify-between mb-2.5">
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-gray-500, #717680)" }}>
+              Participantes
+            </p>
+            {isAdmin && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: "var(--color-brand-50, #eff4ff)", color: "var(--color-brand-600, #003da5)" }}>
+                Admin
+              </span>
+            )}
+          </div>
+          <div
+            className="card-white rounded-2xl overflow-hidden"
+            style={{ border: "1px solid var(--color-gray-200, #e9eaeb)", boxShadow: "0 1px 3px rgba(10,13,18,0.08)" }}
+          >
+            {members.map((member, i) => {
+              const isMe = member.user_id === currentUserId;
+              const isGroupAdmin = group.admin_id === member.user_id;
+              const canRemove = isAdmin && !isMe;
+              return (
+                <div
+                  key={member.user_id}
+                  className="flex items-center gap-3 px-4 py-3"
+                  style={{
+                    borderTop: i > 0 ? "1px solid var(--color-gray-100, #f5f5f5)" : "none",
+                    background: isMe ? "var(--color-brand-50, #eff4ff)" : "transparent",
+                  }}
+                >
+                  <AvatarCircle member={member} size={38} ring={isMe} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-semibold truncate" style={{ color: isMe ? "var(--color-brand-700, #003da5)" : "var(--color-gray-900, #181d27)" }}>
+                        {member.full_name ?? member.email ?? "Jugador"}
+                      </p>
+                      {isMe && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--color-brand-100, #d1e0ff)", color: "var(--color-brand-700, #003da5)" }}>
+                          Vos
+                        </span>
+                      )}
+                      {isGroupAdmin && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--color-gray-100, #f5f5f5)", color: "var(--color-gray-500, #717680)" }}>
+                          Admin
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {canRemove && (
+                    <button
+                      onClick={() => handleRemoveMember(member.user_id)}
+                      disabled={removingId === member.user_id}
+                      className="text-xs font-semibold px-2.5 py-1.5 rounded-xl active:scale-95 transition-all disabled:opacity-40"
+                      style={{ background: "#fef2f2", color: "#e11d48", border: "1px solid #fecdd3" }}
+                    >
+                      {removingId === member.user_id ? "..." : "Sacar"}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── TABLA DE POSICIONES ──────────────────────────────────────── */}
+        <div>
+          <div className="flex items-center justify-between mb-2.5">
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-gray-500, #717680)" }}>
+              Tabla de posiciones
+            </p>
+            <Trophy01 width={14} height={14} style={{ color: "var(--color-gray-400, #a4a7ae)" }} />
+          </div>
+          <div
+            className="card-white rounded-2xl overflow-hidden"
+            style={{ border: "1px solid var(--color-gray-200, #e9eaeb)", boxShadow: "0 1px 3px rgba(10,13,18,0.08)" }}
+          >
+            {leaderboard.length === 0 ? (
+              <div className="px-4 py-10 flex flex-col items-center gap-2 text-center">
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center mb-1"
+                  style={{ background: "var(--color-gray-100, #f5f5f5)" }}
+                >
+                  <BarChart07 width={22} height={22} style={{ color: "var(--color-gray-400, #a4a7ae)" }} />
+                </div>
+                <p className="text-sm font-semibold" style={{ color: "var(--color-gray-700, #414651)" }}>¡Todavía no hay puntos!</p>
+                <p className="text-xs" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>
+                  Los puntos aparecen cuando se jueguen los primeros partidos el 11 Jun.
+                </p>
+              </div>
+            ) : (
+              <div className="px-3 pb-3 pt-2 space-y-1">
+                {leaderboard.map((entry, index) => {
+                  const isMe = entry.user_id === currentUserId;
+                  return (
+                    <div
+                      key={entry.user_id}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                      style={{
+                        background: isMe ? "var(--color-brand-50, #eff4ff)" : "transparent",
+                        border: isMe ? "1px solid var(--color-brand-200, #b2ccff)" : "1px solid transparent",
+                      }}
+                    >
+                      <PositionChip pos={index + 1} />
+                      <AvatarCircle
+                        member={{ avatar_url: entry.avatar_url ?? null, full_name: entry.full_name ?? null, email: null }}
+                        size={30}
+                        ring={isMe}
+                      />
+                      <span
+                        className="flex-1 text-sm font-medium truncate"
+                        style={{ color: isMe ? "var(--color-brand-700, #003da5)" : "var(--color-gray-700, #414651)" }}
+                      >
+                        {entry.full_name ?? "Jugador"}{isMe && " (Vos)"}
+                      </span>
+                      <div className="flex items-baseline gap-0.5">
+                        <span className="font-bold text-sm tabular-nums" style={{ color: isMe ? "var(--color-brand-700, #003da5)" : "var(--color-gray-900, #181d27)" }}>
+                          {entry.total_points}
+                        </span>
+                        <span className="text-xs" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>pts</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
       </div>
 
       <BottomNav active="grupos" />
