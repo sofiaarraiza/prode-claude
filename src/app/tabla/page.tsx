@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, type Group, type LeaderboardEntry } from "@/lib/supabase";
+import { supabase, type Group, type LeaderboardEntry, type GlobalRankingEntry } from "@/lib/supabase";
 import BottomNav from "@/components/layout/BottomNav";
 import ThemeToggle from "@/components/layout/ThemeToggle";
 import {
@@ -11,12 +11,12 @@ import {
   Target01,
   CheckCircle,
   Users01,
-  ChevronRight,
   ChevronDown,
   TrendUp01,
   TrendDown01,
   Award01,
   BarChart07,
+  Globe01,
   Zap,
 } from "@untitledui/icons";
 
@@ -34,7 +34,7 @@ function getLevel(pts: number) {
   return LEVELS.find((l) => pts >= l.min && pts <= l.max) ?? LEVELS[0];
 }
 
-// ── Avatar component (matches dashboard AvatarBubble) ───────────────
+// ── Avatar component ─────────────────────────────────────────────────
 function AvatarBubble({
   avatarUrl,
   name,
@@ -89,9 +89,9 @@ function AvatarBubble({
 // ── Position medal chip ──────────────────────────────────────────────
 function PositionChip({ pos }: { pos: number }) {
   const configs = [
-    { bg: "#C8A84B", text: "white" },       // 1st – gold
-    { bg: "var(--color-gray-400, #a4a7ae)", text: "white" }, // 2nd – silver
-    { bg: "#b45309", text: "white" },        // 3rd – bronze
+    { bg: "#C8A84B", text: "white" },
+    { bg: "var(--color-gray-400, #a4a7ae)", text: "white" },
+    { bg: "#b45309", text: "white" },
   ];
   const cfg = configs[pos - 1] ?? { bg: "var(--color-gray-100, #f5f5f5)", text: "var(--color-gray-500, #717680)" };
   return (
@@ -109,7 +109,9 @@ export default function TablaPage() {
   const router = useRouter();
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroup, setSelectedGroup] = useState("");
+  const [viewMode, setViewMode] = useState<"global" | "group">("global");
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [globalRanking, setGlobalRanking] = useState<GlobalRankingEntry[]>([]);
   const [userId, setUserId] = useState("");
   const [loading, setLoading] = useState(true);
   const [levelsOpen, setLevelsOpen] = useState(false);
@@ -126,15 +128,29 @@ export default function TablaPage() {
         .eq("user_id", session.user.id);
 
       const g = memberData?.map((m: any) => m.groups).filter(Boolean) ?? [];
-      setGroups(g);
-      if (g.length > 0) setSelectedGroup(g[0].id);
+      // Sort: global group first, then private groups
+      const sorted = [...g].sort((a: Group, b: Group) => {
+        if (a.is_global) return -1;
+        if (b.is_global) return 1;
+        return 0;
+      });
+      setGroups(sorted);
+
+      // Load global ranking
+      const { data: globalData } = await supabase.rpc("get_global_ranking");
+      setGlobalRanking(globalData ?? []);
+
+      // Default: global view
+      const privateGroups = sorted.filter((grp: Group) => !grp.is_global);
+      if (privateGroups.length > 0) setSelectedGroup(privateGroups[0].id);
+
       setLoading(false);
     };
     load();
   }, [router]);
 
   useEffect(() => {
-    if (!selectedGroup) return;
+    if (!selectedGroup || viewMode !== "group") return;
     const load = async () => {
       const { data } = await supabase
         .from("leaderboard")
@@ -144,15 +160,23 @@ export default function TablaPage() {
       setLeaderboard(data ?? []);
     };
     load();
-  }, [selectedGroup]);
+  }, [selectedGroup, viewMode]);
 
-  const myEntry = leaderboard.find((e) => e.user_id === userId);
-  const myPos = leaderboard.findIndex((e) => e.user_id === userId) + 1;
+  // ── Derived state for group mode ─────────────────────────────────
+  const myGroupEntry = leaderboard.find((e) => e.user_id === userId);
+  const myGroupPos = leaderboard.findIndex((e) => e.user_id === userId) + 1;
+  const groupLeader = leaderboard[0];
+  const myGroupGap = groupLeader && myGroupEntry ? groupLeader.total_points - myGroupEntry.total_points : 0;
 
-  const leader = leaderboard[0];
-  const myGap = leader && myEntry ? leader.total_points - myEntry.total_points : 0;
+  // ── Derived state for global mode ────────────────────────────────
+  const myGlobalEntry = globalRanking.find((e) => e.user_id === userId);
+  const myGlobalPos = globalRanking.findIndex((e) => e.user_id === userId) + 1;
+  const globalLeader = globalRanking[0];
+  const myGlobalGap = globalLeader && myGlobalEntry ? globalLeader.max_points - myGlobalEntry.max_points : 0;
 
-  // ── Loading skeleton ──────────────────────────────────────────────
+  const privateGroups = groups.filter((g) => !g.is_global);
+
+  // ── Loading skeleton ─────────────────────────────────────────────
   if (loading) {
     return (
       <div
@@ -167,12 +191,24 @@ export default function TablaPage() {
     );
   }
 
+  // ── Shared rendering helpers ─────────────────────────────────────
+  const isGlobal = viewMode === "global";
+  const activeEntries = isGlobal ? globalRanking : leaderboard;
+  const hasEntries = activeEntries.length > 0;
+
+  const myEntry = isGlobal ? myGlobalEntry : myGroupEntry;
+  const myPos = isGlobal ? myGlobalPos : myGroupPos;
+  const myGap = isGlobal ? myGlobalGap : myGroupGap;
+  const getPoints = (e: LeaderboardEntry | GlobalRankingEntry) =>
+    isGlobal ? (e as GlobalRankingEntry).max_points : (e as LeaderboardEntry).total_points;
+  const myPoints = myEntry ? getPoints(myEntry as any) : 0;
+
   return (
     <div
       className="min-h-dvh pb-28"
       style={{ background: "var(--color-bg, #f5f7ff)" }}
     >
-      {/* ── HEADER ─────────────────────────────────────────────────── */}
+      {/* ── HEADER ──────────────────────────────────────────────────── */}
       <div
         className="px-5 pb-5"
         style={{
@@ -220,77 +256,46 @@ export default function TablaPage() {
         </div>
 
         {/* Group selector tabs */}
-        {groups.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-            {groups.map((g) => {
-              const isActive = g.id === selectedGroup;
-              return (
-                <button
-                  key={g.id}
-                  onClick={() => setSelectedGroup(g.id)}
-                  className="flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95"
-                  style={
-                    isActive
-                      ? { background: "var(--color-brand-600, #003da5)", color: "white" }
-                      : {
-                          background: "var(--color-gray-100, #f5f5f5)",
-                          color: "var(--color-gray-600, #535862)",
-                        }
-                  }
-                >
-                  {g.name}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          {/* Global tab — always first */}
+          <button
+            onClick={() => setViewMode("global")}
+            className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95"
+            style={
+              isGlobal
+                ? { background: "linear-gradient(135deg, #C8A84B, #b8942e)", color: "white" }
+                : { background: "var(--color-gray-100, #f5f5f5)", color: "var(--color-gray-600, #535862)" }
+            }
+          >
+            <Globe01 width={13} height={13} />
+            Global
+          </button>
+
+          {/* Private group tabs */}
+          {privateGroups.map((g) => {
+            const isActive = viewMode === "group" && g.id === selectedGroup;
+            return (
+              <button
+                key={g.id}
+                onClick={() => { setViewMode("group"); setSelectedGroup(g.id); }}
+                className="flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95"
+                style={
+                  isActive
+                    ? { background: "var(--color-brand-600, #003da5)", color: "white" }
+                    : { background: "var(--color-gray-100, #f5f5f5)", color: "var(--color-gray-600, #535862)" }
+                }
+              >
+                {g.name}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="px-4 py-4 space-y-4">
 
-        {/* ── NO GROUPS ──────────────────────────────────────────────── */}
-        {groups.length === 0 && (
-          <div
-            className="card-white rounded-2xl px-5 py-10 text-center"
-            style={{ border: "1px solid var(--color-gray-200, #e9eaeb)", boxShadow: "0 1px 3px rgba(10,13,18,0.1)" }}
-          >
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3"
-              style={{ background: "var(--color-gray-100, #f5f5f5)" }}
-            >
-              <Users01 width={22} height={22} style={{ color: "var(--color-gray-400, #a4a7ae)" }} />
-            </div>
-            <p className="font-bold text-sm mb-1" style={{ color: "var(--color-gray-900, #181d27)" }}>
-              Necesitás un grupo para ver la tabla
-            </p>
-            <p className="text-xs mb-5" style={{ color: "var(--color-gray-500, #717680)" }}>
-              Competí con tus amigos en el Mundial 2026
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => router.push("/grupos/crear")}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold active:opacity-80"
-                style={{ background: "var(--color-brand-600, #003da5)", color: "white" }}
-              >
-                Crear grupo
-              </button>
-              <button
-                onClick={() => router.push("/grupos/unirse")}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold active:opacity-80"
-                style={{
-                  background: "var(--color-surface, white)",
-                  border: "1px solid var(--color-gray-300, #d5d7da)",
-                  color: "var(--color-gray-700, #414651)",
-                }}
-              >
-                Unirme
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── EMPTY LEADERBOARD ──────────────────────────────────────── */}
-        {groups.length > 0 && leaderboard.length === 0 && (
+        {/* ── EMPTY STATE ─────────────────────────────────────────────── */}
+        {!hasEntries && (
           <div
             className="card-white rounded-2xl px-5 py-10 text-center"
             style={{ border: "1px solid var(--color-gray-200, #e9eaeb)", boxShadow: "0 1px 3px rgba(10,13,18,0.1)" }}
@@ -310,16 +315,20 @@ export default function TablaPage() {
           </div>
         )}
 
-        {/* ── FULL LEADERBOARD ───────────────────────────────────────── */}
-        {leaderboard.length > 0 && (
+        {/* ── FULL LEADERBOARD ─────────────────────────────────────────── */}
+        {hasEntries && (
           <>
-            {/* ── MY POSITION BANNER ─────────────────────────────────── */}
+            {/* ── MY POSITION BANNER ──────────────────────────────────── */}
             {myEntry && (
               <div
                 className="rounded-2xl px-4 py-3.5 flex items-center gap-3"
                 style={{
-                  background: "linear-gradient(135deg, #003da5 0%, #1a55bd 100%)",
-                  boxShadow: "0 4px 12px rgba(0,61,165,0.25)",
+                  background: isGlobal
+                    ? "linear-gradient(135deg, #C8A84B 0%, #b8942e 100%)"
+                    : "linear-gradient(135deg, #003da5 0%, #1a55bd 100%)",
+                  boxShadow: isGlobal
+                    ? "0 4px 12px rgba(200,168,75,0.3)"
+                    : "0 4px 12px rgba(0,61,165,0.25)",
                 }}
               >
                 <div
@@ -329,26 +338,30 @@ export default function TablaPage() {
                   {myPos}°
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-semibold leading-tight">Tu posición actual</p>
+                  <p className="text-white text-sm font-semibold leading-tight">
+                    {isGlobal ? "Tu posición en el ranking global" : "Tu posición en el grupo"}
+                  </p>
                   <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.65)" }}>
                     {myPos === 1
-                      ? "Sos el líder del grupo"
+                      ? isGlobal ? "Sos el líder del ranking global 🏆" : "Sos el líder del grupo"
                       : myGap === 0
-                        ? `Empatado en ${myPos}° puesto`
+                        ? `Empatado en el ${myPos}° puesto`
                         : `A ${myGap} pts del primero`}
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="text-white text-xl font-extrabold tabular-nums" style={{ fontFamily: "Inter, sans-serif" }}>
-                    {myEntry.total_points}
+                    {myPoints}
                   </p>
-                  <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.55)" }}>puntos</p>
+                  <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.55)" }}>
+                    {isGlobal ? "mejor pts" : "puntos"}
+                  </p>
                 </div>
               </div>
             )}
 
-            {/* ── PODIUM (top 3) ──────────────────────────────────────── */}
-            {leaderboard.length >= 3 && (
+            {/* ── PODIUM (top 3) ───────────────────────────────────────── */}
+            {activeEntries.length >= 3 && (
               <div
                 className="card-white rounded-2xl overflow-hidden"
                 style={{ border: "1px solid var(--color-gray-200, #e9eaeb)", boxShadow: "0 1px 3px rgba(10,13,18,0.08)" }}
@@ -361,17 +374,25 @@ export default function TablaPage() {
                   >
                     Podio
                   </p>
+                  {isGlobal && (
+                    <span
+                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full ml-auto"
+                      style={{ background: "var(--color-brand-50, #eff4ff)", color: "var(--color-brand-600, #003da5)" }}
+                    >
+                      Mejor puntaje de cada jugador
+                    </span>
+                  )}
                 </div>
                 <div className="px-4 pb-5 pt-2 flex items-end justify-center gap-3">
-                  {/* 2nd */}
                   {[1, 0, 2].map((lbIdx) => {
-                    const entry = leaderboard[lbIdx];
+                    const entry = activeEntries[lbIdx];
                     const pos = lbIdx + 1;
                     const isFirst = lbIdx === 0;
                     const isMe = entry?.user_id === userId;
                     const displayName = entry?.username
                       ? `@${entry.username}`
                       : (entry?.full_name?.split(" ")[0] ?? "?");
+                    const pts = entry ? getPoints(entry as any) : 0;
 
                     const sizeMap: Record<number, { avatar: number; barH: string; pts: string }> = {
                       0: { avatar: 56, barH: "64px", pts: "text-xl" },
@@ -408,7 +429,7 @@ export default function TablaPage() {
                           <AvatarBubble avatarUrl={entry?.avatar_url} name={entry?.full_name ?? "?"} size={avatar} />
                         </div>
                         <p
-                          className={`text-[11px] font-semibold mt-1.5 text-center truncate max-w-[72px] ${isMe ? "" : ""}`}
+                          className="text-[11px] font-semibold mt-1.5 text-center truncate max-w-[72px]"
                           style={{
                             color: isMe
                               ? "var(--color-brand-600, #003da5)"
@@ -423,12 +444,9 @@ export default function TablaPage() {
                         >
                           <span
                             className={`font-extrabold tabular-nums ${ptsSize}`}
-                            style={{
-                              fontFamily: "Inter, sans-serif",
-                              color: barColors[lbIdx],
-                            }}
+                            style={{ fontFamily: "Inter, sans-serif", color: barColors[lbIdx] }}
                           >
-                            {entry?.total_points ?? 0}
+                            {pts}
                           </span>
                         </div>
                         <div
@@ -459,68 +477,60 @@ export default function TablaPage() {
                   className="text-xs font-semibold uppercase tracking-wider flex-1"
                   style={{ color: "var(--color-gray-500, #717680)" }}
                 >
-                  Clasificación
+                  {isGlobal ? "Ranking Global" : "Clasificación"}
                 </p>
-                {/* Column labels */}
                 <div className="flex items-center gap-4 pr-1">
-                  <div className="flex items-center gap-1" title="Resultados exactos">
-                    <Target01 width={12} height={12} style={{ color: "#16a34a" }} />
-                    <span className="text-[10px] font-semibold" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>
-                      Exact
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1" title="Solo ganador correcto">
-                    <CheckCircle width={12} height={12} style={{ color: "#d97706" }} />
-                    <span className="text-[10px] font-semibold" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>
-                      Ganó
-                    </span>
-                  </div>
+                  {!isGlobal && (
+                    <>
+                      <div className="flex items-center gap-1" title="Resultados exactos">
+                        <Target01 width={12} height={12} style={{ color: "#16a34a" }} />
+                        <span className="text-[10px] font-semibold" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>
+                          Exact
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1" title="Solo ganador correcto">
+                        <CheckCircle width={12} height={12} style={{ color: "#d97706" }} />
+                        <span className="text-[10px] font-semibold" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>
+                          Ganó
+                        </span>
+                      </div>
+                    </>
+                  )}
                   <span
                     className="text-[10px] font-bold w-8 text-right"
                     style={{ color: "var(--color-gray-500, #717680)" }}
                   >
-                    Pts
+                    {isGlobal ? "Mejor" : "Pts"}
                   </span>
                 </div>
               </div>
 
               {/* Rows */}
               <div className="divide-y" style={{ borderColor: "var(--color-gray-100, #f5f5f5)" }}>
-                {leaderboard.map((entry, index) => {
+                {activeEntries.map((entry, index) => {
                   const isMe = entry.user_id === userId;
                   const pos = index + 1;
+                  const pts = getPoints(entry as any);
+                  const myPts = myEntry ? getPoints(myEntry as any) : 0;
 
                   const displayName = isMe
                     ? `@${entry.username ?? entry.full_name?.split(" ")[0] ?? "vos"}`
                     : entry.username
                       ? `@${entry.username}`
                       : (entry.full_name?.split(" ")[0] ?? "Jugador");
-                  const gap = myEntry && !isMe
-                    ? entry.total_points - myEntry.total_points
-                    : null;
+                  const gap = myEntry && !isMe ? pts - myPts : null;
 
                   return (
                     <div
                       key={entry.user_id}
                       className="px-4 py-3"
                       style={{
-                        background: isMe
-                          ? "var(--color-brand-50, #eff4ff)"
-                          : "transparent",
+                        background: isMe ? "var(--color-brand-50, #eff4ff)" : "transparent",
                       }}
                     >
                       <div className="flex items-center gap-3">
-                        {/* Position */}
                         <PositionChip pos={pos} />
-
-                        {/* Avatar */}
-                        <AvatarBubble
-                          avatarUrl={entry.avatar_url}
-                          name={entry.full_name ?? "?"}
-                          size={36}
-                        />
-
-                        {/* Name + gap vs me */}
+                        <AvatarBubble avatarUrl={entry.avatar_url} name={entry.full_name ?? "?"} size={36} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span
@@ -542,9 +552,8 @@ export default function TablaPage() {
                               </span>
                             )}
                           </div>
-                          {/* Level badge */}
                           {(() => {
-                            const lv = getLevel(entry.total_points);
+                            const lv = getLevel(pts);
                             return (
                               <span
                                 className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md mt-0.5"
@@ -578,18 +587,22 @@ export default function TablaPage() {
 
                         {/* Stats */}
                         <div className="flex items-center gap-4 flex-shrink-0">
-                          <span
-                            className="w-8 text-center text-sm font-semibold tabular-nums"
-                            style={{ color: "#16a34a" }}
-                          >
-                            {entry.exact_results ?? 0}
-                          </span>
-                          <span
-                            className="w-8 text-center text-sm font-semibold tabular-nums"
-                            style={{ color: "#d97706" }}
-                          >
-                            {entry.partial_results ?? 0}
-                          </span>
+                          {!isGlobal && (
+                            <>
+                              <span
+                                className="w-8 text-center text-sm font-semibold tabular-nums"
+                                style={{ color: "#16a34a" }}
+                              >
+                                {(entry as LeaderboardEntry).exact_results ?? 0}
+                              </span>
+                              <span
+                                className="w-8 text-center text-sm font-semibold tabular-nums"
+                                style={{ color: "#d97706" }}
+                              >
+                                {(entry as LeaderboardEntry).partial_results ?? 0}
+                              </span>
+                            </>
+                          )}
                           <span
                             className="w-8 text-right text-base font-extrabold tabular-nums"
                             style={{
@@ -599,11 +612,10 @@ export default function TablaPage() {
                                 : "var(--color-gray-900, #181d27)",
                             }}
                           >
-                            {entry.total_points}
+                            {pts}
                           </span>
                         </div>
                       </div>
-
                     </div>
                   );
                 })}

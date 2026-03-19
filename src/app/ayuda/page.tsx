@@ -11,6 +11,8 @@ import {
   ClipboardCheck,
   HelpCircle,
   Lock01,
+  BarChart07,
+  Globe01,
 } from "@untitledui/icons";
 import BottomNav from "@/components/layout/BottomNav";
 
@@ -45,6 +47,29 @@ const LEVELS = [
   { emoji: "👑", label: "Leyenda",  pts: "100+ pts",     color: "#7c3aed",                         bg: "rgba(124,58,237,0.10)" },
 ];
 
+
+const RANKING_GLOBAL_ITEMS = [
+  {
+    Icon: Users01,
+    title: "¿Qué es el Ranking Global?",
+    desc: "Es una tabla donde compiten TODOS los jugadores de la app, sin importar si son del mismo grupo o no. Es el ranking más importante del juego.",
+  },
+  {
+    Icon: ClipboardCheck,
+    title: "¿Cómo participo?",
+    desc: "Automáticamente. Al registrarte quedás incluido en el Ranking Global. No hace falta hacer nada extra — solo cargá tus predicciones en el grupo 'RANKING GLOBAL'.",
+  },
+  {
+    Icon: Trophy01,
+    title: "¿Qué puntaje se usa?",
+    desc: "Se toma tu MEJOR puntaje a lo largo de todos tus grupos. Si estás en 3 grupos con 50, 75 y 90 puntos, aparecés en el ranking global con 90.",
+  },
+  {
+    Icon: Globe01,
+    title: "¿Dónde lo veo?",
+    desc: "En la tabla de posiciones (ícono de gráfico en el menú), el tab 'Global' siempre muestra el ranking global completo.",
+  },
+];
 
 const FAQS = [
   {
@@ -257,6 +282,59 @@ export default function AyudaPage() {
               <p className="text-xs leading-relaxed" style={{ color: "var(--color-gray-500, #717680)" }}>
                 Si tenés una racha de <strong style={{ color: "var(--color-gray-800, #1d2939)" }}>3 o más aciertos seguidos</strong>, tu nivel muestra 🔥 como bonus aunque no hayas alcanzado el siguiente rango.
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Ranking Global */}
+        <div>
+          <div className="flex items-center justify-between mb-2.5">
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-gray-500, #717680)" }}>
+              Ranking Global 🌍
+            </p>
+          </div>
+          <div
+            className="rounded-2xl overflow-hidden"
+            style={{
+              border: "1px solid #C8A84B44",
+              background: "var(--color-surface, white)",
+              boxShadow: "0 1px 3px rgba(10,13,18,0.08)",
+            }}
+          >
+            {/* Header */}
+            <div
+              className="px-4 py-3 flex items-center gap-3"
+              style={{
+                background: "linear-gradient(135deg, #C8A84B, #b8942e)",
+              }}
+            >
+              <Globe01 width={18} height={18} className="text-white flex-shrink-0" />
+              <div>
+                <p className="text-white text-sm font-bold leading-tight">Todos compiten, todos participan</p>
+                <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.75)" }}>
+                  El ranking más grande del prode del Mundial 2026
+                </p>
+              </div>
+            </div>
+            <div className="divide-y" style={{ borderColor: "var(--color-gray-100, #f5f5f5)" }}>
+              {RANKING_GLOBAL_ITEMS.map(({ Icon, title, desc }) => (
+                <div key={title} className="px-4 py-3.5 flex items-start gap-3">
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                    style={{ background: "rgba(255,255,255,0.25)" }}
+                  >
+                    <Icon width={15} height={15} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold mb-0.5" style={{ color: "var(--color-gray-900, #181d27)" }}>
+                      {title}
+                    </p>
+                    <p className="text-xs leading-relaxed" style={{ color: "var(--color-gray-500, #717680)" }}>
+                      {desc}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

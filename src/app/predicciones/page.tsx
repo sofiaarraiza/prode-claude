@@ -27,6 +27,7 @@ import {
   CheckCircle,
   XCircle,
   Check,
+  Globe01,
 } from "@untitledui/icons";
 
 type PredictionMap = Record<
@@ -87,6 +88,11 @@ function PrediccionesContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [userId, setUserId] = useState("");
+  const [showCopyModal, setShowCopyModal] = useState(false);
+  const [pendingCopySource, setPendingCopySource] = useState<Group | null>(null);
+  const [copying, setCopying] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [copyError, setCopyError] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -113,8 +119,9 @@ function PrediccionesContent() {
 
       setMatches(matchData ?? []);
       const g = memberData?.map((m: any) => m.groups).filter(Boolean) ?? [];
-      setGroups(g);
-      if (!selectedGroup && g.length > 0) setSelectedGroup(g[0].id);
+      const privateGroups = g.filter((grp: Group) => !grp.is_global);
+      setGroups(privateGroups);
+      if (!selectedGroup && privateGroups.length > 0) setSelectedGroup(privateGroups[0].id);
       setLoading(false);
     };
     load();
@@ -210,6 +217,52 @@ function PrediccionesContent() {
       }));
     }
     setSaving(null);
+  };
+
+  const copyFromGroup = async (sourceGroupId: string) => {
+    if (!selectedGroup || sourceGroupId === selectedGroup) return;
+    setCopying(true);
+    setCopyError(false);
+
+    const { error: rpcError } = await supabase.rpc("copy_predictions", {
+      p_source_group_id: sourceGroupId,
+      p_target_group_id: selectedGroup,
+    });
+
+    if (rpcError) {
+      console.error("copy_predictions error:", rpcError);
+      setCopying(false);
+      setShowCopyModal(false);
+      setPendingCopySource(null);
+      setCopyError(true);
+      setTimeout(() => setCopyError(false), 4000);
+      return;
+    }
+
+    // Reload predictions for current group
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    const uid = currentSession?.user?.id;
+    const { data: updated } = await supabase
+      .from("predictions")
+      .select("*")
+      .eq("user_id", uid)
+      .eq("group_id", selectedGroup);
+    const map: PredictionMap = {};
+    updated?.forEach((p: any) => {
+      map[p.match_id] = {
+        home: String(p.predicted_home_score),
+        away: String(p.predicted_away_score),
+        saved: true,
+        points: p.points,
+      };
+    });
+    setPredictions(map);
+
+    setCopying(false);
+    setShowCopyModal(false);
+    setPendingCopySource(null);
+    setCopySuccess(true);
+    setTimeout(() => setCopySuccess(false), 3000);
   };
 
   const getMatchStatus = (match: Match): "open" | "locked" | "finished" => {
@@ -450,18 +503,75 @@ function PrediccionesContent() {
                       className="flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95"
                       style={
                         selectedGroup === g.id
-                          ? { background: "var(--color-brand-600, #003da5)", color: "white" }
+                          ? g.is_global
+                            ? { background: "linear-gradient(135deg, #C8A84B, #b8942e)", color: "white" }
+                            : { background: "var(--color-brand-600, #003da5)", color: "white" }
                           : {
                               background: "var(--color-gray-100, #f5f5f5)",
                               color: "var(--color-gray-600, #535862)",
                             }
                       }
                     >
-                      {g.name}
+                      {g.is_global ? "RANKING GLOBAL" : g.name}
                     </button>
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* ── COPIAR PREDICCIONES BANNER ──────────────────────────────── */}
+            {groups.length > 1 && (
+              <button
+                onClick={() => setShowCopyModal(true)}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left active:scale-[0.98] transition-transform relative overflow-hidden"
+                style={
+                  copySuccess
+                    ? { background: "rgba(22,163,74,0.1)", border: "1px solid rgba(22,163,74,0.25)" }
+                    : copyError
+                      ? { background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }
+                      : { background: "linear-gradient(135deg, #2a7ca8 0%, #4a9fc0 40%, #75c2e0 100%)", boxShadow: "0 4px 12px rgba(42,124,168,0.25)" }
+                }
+              >
+                {/* Decorative icon watermark */}
+                {!copySuccess && !copyError && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-15">
+                    <CheckDone01 width={52} height={52} style={{ color: "white" }} />
+                  </div>
+                )}
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 relative z-10"
+                  style={{
+                    background: copySuccess ? "rgba(22,163,74,0.12)" : copyError ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.2)",
+                  }}
+                >
+                  {copySuccess
+                    ? <CheckCircle width={18} height={18} style={{ color: "#16a34a" }} />
+                    : copyError
+                      ? <AlertCircle width={18} height={18} style={{ color: "#ef4444" }} />
+                      : <CheckDone01 width={18} height={18} style={{ color: "white" }} />
+                  }
+                </div>
+                <div className="flex-1 min-w-0 relative z-10">
+                  <p
+                    className="text-sm font-semibold leading-tight"
+                    style={{ color: copySuccess ? "#16a34a" : copyError ? "#ef4444" : "white" }}
+                  >
+                    {copySuccess ? "¡Predicciones copiadas!" : copyError ? "No se pudo copiar" : "Copiar de otro grupo"}
+                  </p>
+                  <p className="text-[11px] mt-0.5 leading-snug" style={{ color: copySuccess ? "#16a34a" : copyError ? "#ef4444" : "rgba(255,255,255,0.8)" }}>
+                    {copySuccess
+                      ? "Tus predicciones fueron copiadas exitosamente."
+                      : copyError
+                        ? "Revisá tu conexión e intentá de nuevo."
+                        : "Si ya completaste otro grupo, copiá todos los resultados con un toque."}
+                  </p>
+                </div>
+                {!copySuccess && !copyError && (
+                  <span className="text-sm font-bold flex-shrink-0 relative z-10" style={{ color: "white" }}>
+                    →
+                  </span>
+                )}
+              </button>
             )}
 
             {/* ── PROGRESO TOTAL ─────────────────────────────────────────── */}
@@ -966,6 +1076,157 @@ function PrediccionesContent() {
       </div>
 
       <BottomNav active="predicciones" />
+
+      {/* ── COPY MODAL ─────────────────────────────────────────────────── */}
+      {showCopyModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{ background: "rgba(0,0,0,0.45)" }}
+          onClick={() => { setShowCopyModal(false); setPendingCopySource(null); }}
+        >
+          <div
+            className="w-full rounded-t-3xl overflow-hidden"
+            style={{ maxWidth: 480, background: "var(--color-surface, white)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full" style={{ background: "var(--color-gray-200, #e9eaeb)" }} />
+            </div>
+
+            {pendingCopySource ? (
+              /* ── PASO 2: CONFIRMACIÓN ── */
+              <div className="px-5 pt-2">
+                <p className="text-base font-extrabold mb-0.5" style={{ color: "var(--color-gray-900, #181d27)" }}>
+                  Confirmá la copia
+                </p>
+                <p className="text-sm mb-5" style={{ color: "var(--color-gray-500, #717680)" }}>
+                  Se sobreescribirán las predicciones existentes en el grupo destino.
+                </p>
+
+                {/* FROM → TO diagram */}
+                <div
+                  className="rounded-2xl p-4 mb-5 flex items-center gap-3"
+                  style={{ background: "var(--color-gray-50, #fafafa)", border: "1px solid var(--color-gray-200, #e9eaeb)" }}
+                >
+                  {/* Source */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>
+                      Desde
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ background: "var(--color-brand-50, #eff4ff)", border: "1px solid var(--color-brand-100, #d1e0ff)" }}
+                      >
+                        <Trophy01 width={14} height={14} style={{ color: "var(--color-brand-600, #003da5)" }} />
+                      </div>
+                      <p className="text-sm font-bold truncate" style={{ color: "var(--color-gray-900, #181d27)" }}>
+                        {pendingCopySource.name}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Arrow */}
+                  <div className="flex-shrink-0 px-1">
+                    <ChevronRight width={18} height={18} style={{ color: "var(--color-gray-300, #d5d7da)" }} />
+                  </div>
+
+                  {/* Destination */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>
+                      Hacia
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ background: "rgba(42,124,168,0.12)", border: "1px solid rgba(42,124,168,0.2)" }}
+                      >
+                        <Trophy01 width={14} height={14} style={{ color: "#2a7ca8" }} />
+                      </div>
+                      <p className="text-sm font-bold truncate" style={{ color: "var(--color-gray-900, #181d27)" }}>
+                        {groups.find((g) => g.id === selectedGroup)?.name ?? "Grupo actual"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  disabled={copying}
+                  onClick={() => copyFromGroup(pendingCopySource.id)}
+                  className="w-full py-3 rounded-2xl text-sm font-bold active:opacity-80 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: "linear-gradient(135deg, #2a7ca8, #4a9fc0)", color: "white" }}
+                >
+                  {copying ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "white", borderTopColor: "transparent" }} />
+                      Copiando...
+                    </>
+                  ) : (
+                    "Confirmar copia"
+                  )}
+                </button>
+                <button
+                  disabled={copying}
+                  onClick={() => setPendingCopySource(null)}
+                  className="mt-2 w-full py-3 rounded-2xl text-sm font-semibold active:opacity-70 disabled:opacity-50"
+                  style={{ background: "var(--color-gray-100, #f5f5f5)", color: "var(--color-gray-600, #535862)" }}
+                >
+                  Volver
+                </button>
+              </div>
+            ) : (
+              /* ── PASO 1: ELEGIR ORIGEN ── */
+              <div className="px-5 pt-2">
+                <p className="text-base font-extrabold mb-0.5" style={{ color: "var(--color-gray-900, #181d27)" }}>
+                  Copiar predicciones
+                </p>
+                <p className="text-sm mb-4" style={{ color: "var(--color-gray-500, #717680)" }}>
+                  ¿De qué grupo querés copiar al grupo actual?
+                </p>
+                <div className="space-y-2">
+                  {groups
+                    .filter((g) => g.id !== selectedGroup)
+                    .map((g) => (
+                      <button
+                        key={g.id}
+                        onClick={() => setPendingCopySource(g)}
+                        className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-left active:opacity-70 transition-opacity"
+                        style={{ background: "var(--color-gray-50, #fafafa)", border: "1px solid var(--color-gray-200, #e9eaeb)" }}
+                      >
+                        <div
+                          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ background: "var(--color-brand-50, #eff4ff)" }}
+                        >
+                          <Trophy01 width={15} height={15} style={{ color: "var(--color-brand-600, #003da5)" }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold truncate" style={{ color: "var(--color-gray-900, #181d27)" }}>
+                            {g.name}
+                          </p>
+                          <p className="text-xs mt-0.5" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>
+                            Copiar todos los resultados de este grupo
+                          </p>
+                        </div>
+                        <ChevronRight width={15} height={15} style={{ color: "var(--color-gray-300, #d5d7da)", flexShrink: 0 }} />
+                      </button>
+                    ))}
+                </div>
+                <button
+                  onClick={() => setShowCopyModal(false)}
+                  className="mt-3 w-full py-3 rounded-2xl text-sm font-semibold active:opacity-70"
+                  style={{ background: "var(--color-gray-100, #f5f5f5)", color: "var(--color-gray-600, #535862)" }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            )}
+
+            {/* Espacio para el BottomNav + safe area */}
+            <div style={{ height: "calc(env(safe-area-inset-bottom, 0px) + 84px)" }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

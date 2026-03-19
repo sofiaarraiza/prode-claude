@@ -12,6 +12,7 @@ import {
   Copy01,
   Check,
   BarChart07,
+  Globe01,
 } from "@untitledui/icons";
 
 // Position chip — matches /tabla style
@@ -120,6 +121,10 @@ export default function GrupoDetailPage() {
         supabase.from("group_members").select("user_id, profiles:user_id(full_name, avatar_url, email)").eq("group_id", groupId),
       ]);
 
+      if (grp?.is_global) {
+        router.replace("/tabla");
+        return;
+      }
       setGroup(grp);
       setLeaderboard(lb ?? []);
       setNewName(grp?.name ?? "");
@@ -310,8 +315,21 @@ export default function GrupoDetailPage() {
           </div>
         </button>
 
+        {/* ── GLOBAL GROUP BANNER ─────────────────────────────────────── */}
+        {group.is_global && (
+          <div
+            className="px-4 py-3 rounded-2xl flex items-center gap-3 mb-1"
+            style={{ background: "#fffbeb", border: "1px solid #C8A84B44", color: "#92400e" }}
+          >
+            <Globe01 width={16} height={16} style={{ color: "#92400e", flexShrink: 0 }} />
+            <p className="text-xs font-medium leading-snug">
+              Este es el RANKING GLOBAL — todos los jugadores participan automáticamente.
+            </p>
+          </div>
+        )}
+
         {/* ── INVITAR ──────────────────────────────────────────────────── */}
-        <div>
+        {!group.is_global && <div>
           <p className="text-xs font-semibold uppercase tracking-wider mb-2.5" style={{ color: "var(--color-gray-500, #717680)" }}>
             Invitar amigos
           </p>
@@ -359,7 +377,7 @@ export default function GrupoDetailPage() {
               <ChevronRight width={14} height={14} style={{ color: "var(--color-gray-300, #d5d7da)" }} />
             </button>
           </div>
-        </div>
+        </div>}
 
         {/* ── PARTICIPANTES ────────────────────────────────────────────── */}
         <div>

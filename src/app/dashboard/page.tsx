@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, type Profile, type Group, type Match } from "@/lib/supabase";
+import { supabase, type Profile, type Group, type Match, type GlobalRankingEntry } from "@/lib/supabase";
 import BottomNav from "@/components/layout/BottomNav";
 import ThemeToggle from "@/components/layout/ThemeToggle";
+import LiveMatchCarousel from "@/components/LiveMatchCarousel";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -14,6 +15,8 @@ import {
   Trophy01,
   ClipboardCheck,
   ChevronRight,
+  BarChart07,
+  Globe01,
 } from "@untitledui/icons";
 
 const WORLD_CUP_START = new Date("2026-06-11T19:00:00Z");
@@ -338,8 +341,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [selectedGroupIdx, setSelectedGroupIdx] = useState(0);
   const [groupStats, setGroupStats] = useState<
-    Array<{ points: number; predCount: number; leaderboard: any[] }>
+    Array<{ points: number; predCount: number }>
   >([]);
+  const [globalRanking, setGlobalRanking] = useState<GlobalRankingEntry[]>([]);
   const [, forceUpdate] = useState(0);
 
   useEffect(() => {
@@ -408,11 +412,43 @@ export default function DashboardPage() {
       }
       setProfile(prof);
       const g = memberGroups?.map((m: any) => m.groups).filter(Boolean) ?? [];
-      setGroups(g);
+      const privateGroups = g.filter((grp: Group) => !grp.is_global);
+      setGroups(privateGroups);
 
       const now = Date.now();
       const all = matchData ?? [];
-      setLiveMatches(all.filter((m) => getLiveStatus(m) === "live"));
+      // 🔧 DEMO — partidos fake en vivo para previsualización (borrar cuando el torneo arranque)
+      const DEMO_LIVE: Match[] = [
+        {
+          id: "demo-live-1",
+          home_team: "Argentina",
+          away_team: "Brasil",
+          home_flag: "🇦🇷",
+          away_flag: "🇧🇷",
+          home_score: 1,
+          away_score: 0,
+          group_name: "C",
+          phase: "group",
+          status: "live",
+          match_date: new Date(now - 30 * 60 * 1000).toISOString(),
+          city: "Buenos Aires",
+        } as any,
+        {
+          id: "demo-live-2",
+          home_team: "Francia",
+          away_team: "España",
+          home_flag: "🇫🇷",
+          away_flag: "🇪🇸",
+          home_score: 0,
+          away_score: 2,
+          group_name: "E",
+          phase: "group",
+          status: "live",
+          match_date: new Date(now - 62 * 60 * 1000).toISOString(),
+          city: "Dallas",
+        } as any,
+      ];
+      setLiveMatches([...DEMO_LIVE, ...all.filter((m) => getLiveStatus(m) === "live")]);
       setUpcomingMatches(
         all.filter((m) => parseISO(m.match_date).getTime() > now).slice(0, 5),
       );
@@ -425,34 +461,23 @@ export default function DashboardPage() {
       if (g.length > 0) {
         const stats = await Promise.all(
           g.map(async (grp: Group) => {
-            const [{ data: preds }, { data: lb }] = await Promise.all([
-              supabase
-                .from("predictions")
-                .select("points")
-                .eq("user_id", session.user.id)
-                .eq("group_id", grp.id),
-              supabase
-                .from("leaderboard")
-                .select(
-                  "user_id, username, full_name, avatar_url, total_points",
-                )
-                .eq("group_id", grp.id)
-                .order("total_points", { ascending: false })
-                .limit(3),
-            ]);
+            const { data: preds } = await supabase
+              .from("predictions")
+              .select("points")
+              .eq("user_id", session.user.id)
+              .eq("group_id", grp.id);
             const pts = (preds ?? []).reduce(
               (s: number, p: any) => s + (p.points ?? 0),
               0,
             );
-            return {
-              points: pts,
-              predCount: (preds ?? []).length,
-              leaderboard: lb ?? [],
-            };
+            return { points: pts, predCount: (preds ?? []).length };
           }),
         );
         setGroupStats(stats);
       }
+
+      const { data: globalData } = await supabase.rpc("get_global_ranking");
+      setGlobalRanking(globalData ?? []);
 
       setLoading(false);
     };
@@ -537,102 +562,7 @@ export default function DashboardPage() {
 
       <div className="px-4 relative z-10 space-y-5">
         {/* ── EN VIVO ──────────────────────────────────────────────────── */}
-        {liveMatches.length > 0 && (
-          <div
-            className="card-white rounded-2xl overflow-hidden"
-            style={{
-              border: "1px solid var(--color-gray-200, #e9eaeb)",
-              boxShadow: "0 1px 3px rgba(10,13,18,0.1)",
-            }}
-          >
-            <div
-              className="px-4 py-3 flex items-center gap-2"
-              style={{
-                borderBottom: "1px solid var(--color-gray-100, #f5f5f5)",
-              }}
-            >
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-              <span className="text-xs font-semibold text-red-600 tracking-wide uppercase">
-                En vivo
-              </span>
-            </div>
-            {liveMatches.map((match, idx) => {
-              const min = getMinute(match);
-              const hasScore =
-                match.home_score !== null && match.away_score !== null;
-              return (
-                <div
-                  key={match.id}
-                  className="px-4 py-3"
-                  style={
-                    idx < liveMatches.length - 1
-                      ? {
-                          borderBottom:
-                            "1px solid var(--color-gray-100, #f5f5f5)",
-                        }
-                      : {}
-                  }
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 flex items-center gap-2 min-w-0">
-                      <span className="text-xl flex-shrink-0">
-                        {match.home_flag}
-                      </span>
-                      <span
-                        className="text-sm font-semibold truncate"
-                        style={{ color: "var(--color-gray-900, #181d27)" }}
-                      >
-                        {match.home_team}
-                      </span>
-                    </div>
-                    <div className="flex-shrink-0 text-center">
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className="font-bold text-xl tabular-nums"
-                          style={{
-                            color: "var(--color-gray-900, #181d27)",
-                            fontFamily: "Bebas Neue, sans-serif",
-                          }}
-                        >
-                          {hasScore ? match.home_score : "–"}
-                        </span>
-                        <span
-                          className="text-sm font-light"
-                          style={{ color: "var(--color-gray-400, #a4a7ae)" }}
-                        >
-                          ·
-                        </span>
-                        <span
-                          className="font-bold text-xl tabular-nums"
-                          style={{
-                            color: "var(--color-gray-900, #181d27)",
-                            fontFamily: "Bebas Neue, sans-serif",
-                          }}
-                        >
-                          {hasScore ? match.away_score : "–"}
-                        </span>
-                      </div>
-                      <span className="text-xs font-semibold text-red-500">
-                        {min}&apos;
-                      </span>
-                    </div>
-                    <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
-                      <span
-                        className="text-sm font-semibold truncate text-right"
-                        style={{ color: "var(--color-gray-900, #181d27)" }}
-                      >
-                        {match.away_team}
-                      </span>
-                      <span className="text-xl flex-shrink-0">
-                        {match.away_flag}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {liveMatches.length > 0 && <LiveMatchCarousel matches={liveMatches} />}
 
         {/* ── COUNTDOWN ────────────────────────────────────────────────── */}
         <CountdownCard />
@@ -747,7 +677,7 @@ export default function DashboardPage() {
                               }
                         }
                       >
-                        {g.name}
+                        {g.is_global ? "RANKING GLOBAL" : g.name}
                       </button>
                     ))}
                   </div>
@@ -756,7 +686,7 @@ export default function DashboardPage() {
                     className="flex-1 text-sm font-semibold"
                     style={{ color: "var(--color-gray-900, #181d27)" }}
                   >
-                    {currentGroup?.name}
+                    {currentGroup?.is_global ? "RANKING GLOBAL" : currentGroup?.name}
                   </span>
                 )}
                 <button
@@ -849,101 +779,6 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {/* Mini leaderboard */}
-              <div>
-                <div className="px-4 pt-3 pb-1 flex items-center justify-between">
-                  <p
-                    className="text-xs font-semibold uppercase tracking-wider"
-                    style={{ color: "var(--color-gray-500, #717680)" }}
-                  >
-                    Tabla
-                  </p>
-                </div>
-                {stats.leaderboard.length > 0 ? (
-                  <div className="px-3 pb-2 space-y-1">
-                    {stats.leaderboard.map((entry, i) => {
-                      const isMe = entry.user_id === profile?.id;
-                      return (
-                        <div
-                          key={entry.user_id}
-                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
-                          style={{
-                            background: isMe
-                              ? "var(--color-brand-50, #eff4ff)"
-                              : "transparent",
-                            border: isMe
-                              ? "1px solid var(--color-brand-200, #b2ccff)"
-                              : "1px solid transparent",
-                          }}
-                        >
-                          <DashPositionChip pos={i + 1} />
-                          <AvatarBubble
-                            avatarUrl={entry.avatar_url}
-                            name={entry.full_name ?? "?"}
-                            size={30}
-                          />
-                          <span
-                            className="flex-1 text-sm font-medium truncate"
-                            style={{
-                              color: isMe
-                                ? "var(--color-brand-700, #003da5)"
-                                : "var(--color-gray-700, #414651)",
-                            }}
-                          >
-                            {isMe
-                              ? `@${entry.username ?? entry.full_name?.split(" ")[0] ?? "vos"} (Vos)`
-                              : entry.username
-                                ? `@${entry.username}`
-                                : (entry.full_name?.split(" ")[0] ?? "Usuario")}
-                          </span>
-                          <div className="flex items-baseline gap-0.5">
-                            <span
-                              className="font-bold text-sm tabular-nums"
-                              style={{
-                                color: isMe
-                                  ? "var(--color-brand-700, #003da5)"
-                                  : "var(--color-gray-900, #181d27)",
-                              }}
-                            >
-                              {entry.total_points}
-                            </span>
-                            <span
-                              className="text-xs"
-                              style={{
-                                color: "var(--color-gray-400, #a4a7ae)",
-                              }}
-                            >
-                              pts
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="px-4 py-5 text-center">
-                    <p
-                      className="text-sm"
-                      style={{ color: "var(--color-gray-400, #a4a7ae)" }}
-                    >
-                      Cargá predicciones para ver la tabla
-                    </p>
-                  </div>
-                )}
-                <div className="px-3 pb-3 pt-1">
-                  <button
-                    onClick={() => router.push("/tabla")}
-                    className="w-full py-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-1 active:opacity-80 transition-opacity"
-                    style={{
-                      background: "var(--color-gray-50, #fafafa)",
-                      border: "1px solid var(--color-gray-200, #e9eaeb)",
-                      color: "var(--color-gray-700, #414651)",
-                    }}
-                  >
-                    Ver tabla completa <ChevronRight width={14} height={14} />
-                  </button>
-                </div>
-              </div>
             </div>
           ) : (
             <div
@@ -1094,6 +929,90 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* ── RANKING GLOBAL ───────────────────────────────────────────── */}
+        {globalRanking.length > 0 && (() => {
+          const myPos = globalRanking.findIndex((e) => e.user_id === profile?.id);
+          const top5 = globalRanking.slice(0, 5);
+          return (
+            <div>
+              <div className="flex items-center justify-between mb-2.5">
+                <div className="flex items-center gap-1.5">
+                  <Globe01 width={13} height={13} style={{ color: "var(--color-gray-400, #a4a7ae)" }} />
+                  <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-gray-500, #717680)" }}>
+                    Ranking Global
+                  </p>
+                </div>
+                <button
+                  onClick={() => router.push("/tabla")}
+                  className="text-xs font-semibold flex items-center gap-0.5 active:opacity-70"
+                  style={{ color: "var(--color-brand-600, #003da5)" }}
+                >
+                  Ver completo <ChevronRight width={12} height={12} />
+                </button>
+              </div>
+              <div
+                className="card-white rounded-2xl overflow-hidden"
+                style={{ border: "1px solid var(--color-gray-200, #e9eaeb)", boxShadow: "0 1px 3px rgba(10,13,18,0.1)" }}
+              >
+                {/* My global position */}
+                {myPos >= 0 && (
+                  <div
+                    className="px-4 py-2.5 flex items-center gap-2"
+                    style={{
+                      background: "linear-gradient(135deg, #C8A84B, #b8942e)",
+                      borderBottom: "1px solid rgba(255,255,255,0.15)",
+                    }}
+                  >
+                    <Globe01 width={13} height={13} className="text-white flex-shrink-0" />
+                    <p className="text-white text-xs font-semibold flex-1">Tu posición global</p>
+                    <span className="text-white font-extrabold text-sm tabular-nums" style={{ fontFamily: "Inter, sans-serif" }}>
+                      #{myPos + 1}
+                    </span>
+                    <span className="text-[11px] ml-1" style={{ color: "rgba(255,255,255,0.7)" }}>
+                      · {globalRanking[myPos]?.max_points ?? 0} pts
+                    </span>
+                  </div>
+                )}
+                {/* Top 5 */}
+                <div className="px-3 py-2 space-y-1">
+                  {top5.map((entry, i) => {
+                    const isMe = entry.user_id === profile?.id;
+                    return (
+                      <div
+                        key={entry.user_id}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                        style={{
+                          background: isMe ? "var(--color-brand-50, #eff4ff)" : "transparent",
+                          border: isMe ? "1px solid var(--color-brand-200, #b2ccff)" : "1px solid transparent",
+                        }}
+                      >
+                        <DashPositionChip pos={i + 1} />
+                        <AvatarBubble avatarUrl={entry.avatar_url} name={entry.full_name ?? "?"} size={30} />
+                        <span
+                          className="flex-1 text-sm font-medium truncate"
+                          style={{ color: isMe ? "var(--color-brand-700, #003da5)" : "var(--color-gray-700, #414651)" }}
+                        >
+                          {isMe
+                            ? `@${entry.username ?? entry.full_name?.split(" ")[0] ?? "vos"} (Vos)`
+                            : entry.username
+                              ? `@${entry.username}`
+                              : (entry.full_name?.split(" ")[0] ?? "Usuario")}
+                        </span>
+                        <div className="flex items-baseline gap-0.5">
+                          <span className="font-bold text-sm tabular-nums" style={{ color: isMe ? "var(--color-brand-700, #003da5)" : "var(--color-gray-900, #181d27)" }}>
+                            {entry.max_points}
+                          </span>
+                          <span className="text-xs" style={{ color: "var(--color-gray-400, #a4a7ae)" }}>pts</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── SISTEMA DE PUNTOS ────────────────────────────────────────── */}
         <div

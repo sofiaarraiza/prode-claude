@@ -21,8 +21,17 @@ export type Group = {
   name: string
   description: string | null
   invite_code: string
-  admin_id: string
+  admin_id: string | null
+  is_global: boolean
   created_at: string
+}
+
+export type GlobalRankingEntry = {
+  user_id: string
+  username: string | null
+  full_name: string | null
+  avatar_url: string | null
+  max_points: number
 }
 
 export type GroupMember = {

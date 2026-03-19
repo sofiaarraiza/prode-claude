@@ -14,6 +14,7 @@ import {
   Trophy01,
   HelpCircle,
 } from "@untitledui/icons";
+import LiveMatchCarousel from "@/components/LiveMatchCarousel";
 
 type Phase =
   | "grupos"
@@ -373,21 +374,37 @@ export default function PartidosPage() {
       {(() => {
         const now = Date.now();
 
-        // 🔧 DEMO — partido fake en vivo para previsualización (borrar cuando el torneo arranque)
-        const DEMO_LIVE = [{
-          id: "demo-live-1",
-          home_team: "Argentina",
-          away_team: "Brasil",
-          home_flag: "🇦🇷",
-          away_flag: "🇧🇷",
-          home_score: 1,
-          away_score: 0,
-          group_name: "C",
-          phase: "group",
-          status: "live",
-          match_date: new Date(now - 30 * 60 * 1000).toISOString(), // empezó hace 30 min
-          city: "Buenos Aires",
-        } as any];
+        // 🔧 DEMO — partidos fake en vivo para previsualización (borrar cuando el torneo arranque)
+        const DEMO_LIVE = [
+          {
+            id: "demo-live-1",
+            home_team: "Argentina",
+            away_team: "Brasil",
+            home_flag: "🇦🇷",
+            away_flag: "🇧🇷",
+            home_score: 1,
+            away_score: 0,
+            group_name: "C",
+            phase: "group",
+            status: "live",
+            match_date: new Date(now - 30 * 60 * 1000).toISOString(),
+            city: "Buenos Aires",
+          } as any,
+          {
+            id: "demo-live-2",
+            home_team: "Francia",
+            away_team: "España",
+            home_flag: "🇫🇷",
+            away_flag: "🇪🇸",
+            home_score: 0,
+            away_score: 2,
+            group_name: "E",
+            phase: "group",
+            status: "live",
+            match_date: new Date(now - 62 * 60 * 1000).toISOString(),
+            city: "Dallas",
+          } as any,
+        ];
 
         const liveMatches = [
           ...DEMO_LIVE,
@@ -406,40 +423,8 @@ export default function PartidosPage() {
         return (
           <div className="px-4 mb-4 space-y-3">
 
-            {/* EN VIVO — full-width card for each live match */}
-            {liveMatches.map((m) => (
-              <div
-                key={m.id}
-                className="rounded-2xl overflow-hidden relative"
-                style={{ background: "linear-gradient(135deg, #be123c 0%, #e11d48 100%)", boxShadow: "0 4px 14px rgba(225,29,72,0.35)" }}
-              >
-                <div className="absolute -right-6 -bottom-6 w-28 h-28 rounded-full opacity-[0.08]" style={{ background: "white" }} />
-                <div className="px-4 pt-3 pb-3.5">
-                  {/* Badge */}
-                  <div className="flex items-center gap-1.5 mb-3">
-                    <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                    <span className="text-[10px] font-bold tracking-widest text-white/90 uppercase">En vivo</span>
-                    <span className="text-[10px] text-white/60 ml-auto">Grupo {m.group_name}</span>
-                  </div>
-                  {/* Teams + score */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 flex items-center gap-2 min-w-0">
-                      <span style={{ fontSize: 28 }}>{m.home_flag}</span>
-                      <span className="text-sm font-bold text-white truncate">{m.home_team}</span>
-                    </div>
-                    <div className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-xl" style={{ background: "rgba(255,255,255,0.18)" }}>
-                      <span className="text-xl font-extrabold text-white tabular-nums">{m.home_score ?? "·"}</span>
-                      <span className="text-white/50 font-bold">-</span>
-                      <span className="text-xl font-extrabold text-white tabular-nums">{m.away_score ?? "·"}</span>
-                    </div>
-                    <div className="flex-1 flex items-center gap-2 justify-end min-w-0">
-                      <span className="text-sm font-bold text-white truncate text-right">{m.away_team}</span>
-                      <span style={{ fontSize: 28 }}>{m.away_flag}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+            {/* EN VIVO — carousel */}
+            {liveMatches.length > 0 && <LiveMatchCarousel matches={liveMatches} />}
 
             {/* PRÓXIMOS — horizontal scroll */}
             {upcoming.length > 0 && (
@@ -520,48 +505,56 @@ export default function PartidosPage() {
       {phase === "grupos" && (
         <>
           {/* View toggle + group selector */}
-          <div className="px-4 pt-3 pb-2 space-y-2">
-            {/* Fixture / Posiciones toggle */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setView("fixture")}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all active:opacity-80"
-                style={view === "fixture"
-                  ? { background: "var(--color-brand-600, #003da5)", color: "white" }
-                  : { background: "var(--color-gray-100, #f5f5f5)", color: "var(--color-gray-600, #535862)" }}
+          <div className="px-4 pt-3 pb-2">
+            <div
+              className="card-white rounded-2xl overflow-hidden"
+              style={{ border: "1px solid var(--color-gray-200, #e9eaeb)", boxShadow: "0 1px 3px rgba(10,13,18,0.08)" }}
+            >
+              {/* Fixture / Posiciones toggle */}
+              <div
+                className="px-3 py-2.5 flex gap-2"
+                style={{ borderBottom: "1px solid var(--color-gray-100, #f5f5f5)" }}
               >
-                <ClipboardCheck width={13} height={13} />
-                Fixture
-              </button>
-              <button
-                onClick={() => setView("grupos")}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all active:opacity-80"
-                style={view === "grupos"
-                  ? { background: "var(--color-brand-600, #003da5)", color: "white" }
-                  : { background: "var(--color-gray-100, #f5f5f5)", color: "var(--color-gray-600, #535862)" }}
-              >
-                <BarChart01 width={13} height={13} />
-                Posiciones
-              </button>
-            </div>
+                <button
+                  onClick={() => setView("fixture")}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                  style={view === "fixture"
+                    ? { background: "var(--color-brand-600, #003da5)", color: "white", boxShadow: "0 2px 6px rgba(0,61,165,0.25)" }
+                    : { background: "var(--color-gray-100, #f5f5f5)", color: "var(--color-gray-600, #535862)" }}
+                >
+                  <ClipboardCheck width={13} height={13} />
+                  Fixture
+                </button>
+                <button
+                  onClick={() => setView("grupos")}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                  style={view === "grupos"
+                    ? { background: "var(--color-brand-600, #003da5)", color: "white", boxShadow: "0 2px 6px rgba(0,61,165,0.25)" }
+                    : { background: "var(--color-gray-100, #f5f5f5)", color: "var(--color-gray-600, #535862)" }}
+                >
+                  <BarChart01 width={13} height={13} />
+                  Posiciones
+                </button>
+              </div>
 
-            {/* Group pills */}
-            <div className="overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-              <div className="flex gap-1.5 w-max">
-                {GROUPS.map((g) => (
-                  <button
-                    key={g}
-                    onClick={() => setActiveGroup(g)}
-                    className="flex-shrink-0 w-9 h-9 rounded-xl text-xs font-bold transition-all active:scale-90"
-                    style={
-                      activeGroup === g
-                        ? { background: "var(--color-brand-600, #003da5)", color: "white" }
-                        : { background: "var(--color-gray-100, #f5f5f5)", color: "var(--color-gray-600, #535862)" }
-                    }
-                  >
-                    {g}
-                  </button>
-                ))}
+              {/* Group pills */}
+              <div className="px-3 py-2.5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+                <div className="flex gap-1.5 w-max">
+                  {GROUPS.map((g) => (
+                    <button
+                      key={g}
+                      onClick={() => setActiveGroup(g)}
+                      className="flex-shrink-0 w-9 h-9 rounded-xl text-xs font-bold transition-all active:scale-90"
+                      style={
+                        activeGroup === g
+                          ? { background: "var(--color-brand-600, #003da5)", color: "white" }
+                          : { background: "var(--color-gray-100, #f5f5f5)", color: "var(--color-gray-600, #535862)" }
+                      }
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
